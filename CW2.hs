@@ -41,6 +41,66 @@ lexeme = L.lexeme sc
 symbol :: String -> Parser String
 symbol = L.symbol sc
 
+-- | 'parens' parses something between parenthesis.
+parens :: Parser a -> Parser a
+parens = between (symbol "(") (symbol ")")
+
+-- | 'integer' parses an integer.
+integer :: Parser Integer
+integer = lexeme L.integer
+
+-- | 'semi' parses a semicolon.
+semi :: Parser String
+semi = symbol ";"
+
+whileParser :: Parser Stm
+whileParser = between sc eof stm
+
+stm :: Parser Stm
+stm = parens (ifStmt <|> whileStmt <|> skipStmt <|> assignStmt)
+
+rword :: String -> Parser ()
+rword w = string w *> notFollowedBy alphaNumChar *> sc
+
+rws :: [String] -- list of reserved words
+rws = ["if","then","else","while","do","skip","true","false","not","and","or"]
+
+identifier :: Parser String
+identifier = (lexeme . try) (p >>= check)
+    where
+        p       = (:) <$> letterChar <*> many alphaNumChar
+        check x = if x `elem` rws
+                    then fail $ "keyword " ++ show x ++ " cannot be an identifier"
+                  else return x
+
+ifStmt :: Parser Stm
+ifStmt = do
+    rword "if"
+    cond  <- bExpr
+    rword "then"
+    stmt1 <- stm
+    rword "else"
+    stmt2 <- stm
+    return (If cond stmt1 stmt2)
+
+whileStmt :: Parser Stm
+whileStmt = do
+    rword "while"
+    cond <- bExpr
+    rword "do"
+    stmt1 <- stm
+    return (While cond stmt1)
+
+assignStmt :: Parser Stm
+assignStmt = do
+    var  <- identifier
+    void (symbol ":=")
+    expr <- aExpr
+    return (Assign var expr)
+
+skipStmt :: Parser Stm
+skipStmt = Skip <$ rword "skip"
+
 testString = "/*fac_loop (p.23)*/\ny:=1;\nwhile !(x=1) do (\n y:=y*x;\n x:=x-1\n)"
 
 main = putStrLn "Hello, World!"
