@@ -26,6 +26,8 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
         | If Bexp Stm Stm | While Bexp Stm
         | Block DecV DecP Stm | Call Pname
 
+--START UTILITY STUFF
+
 -- handling whitespace and comments
 sc :: Parser ()
 sc = L.space (void spaceChar) lineCmnt blockCmnt
@@ -53,12 +55,6 @@ integer = lexeme L.integer
 semi :: Parser String
 semi = symbol ";"
 
-whileParser :: Parser Stm
-whileParser = between sc eof stm
-
-stm :: Parser Stm
-stm = parens (ifStm <|> whileStm <|> skipStm <|> assStm <|> compStm <|> blockStm <|> callStm)
-
 rword :: String -> Parser ()
 rword w = string w *> notFollowedBy alphaNumChar *> sc
 
@@ -72,6 +68,27 @@ identifier = (lexeme . try) (p >>= check)
         check x = if x `elem` rws
                     then fail $ "keyword " ++ show x ++ " cannot be an identifier"
                   else return x
+--END UTILITY STUFF
+
+
+
+whileParser :: Parser Stm
+whileParser = between sc eof stm
+
+stm :: Parser Stm
+stm = parens (ifStm <|> whileStm <|> skipStm <|> assStm <|> compStm <|> blockStm <|> callStm)
+
+-- TODO
+decv :: Parser DecV
+decv = parens (ifStm <|> whileStm <|> skipStm <|> assStm <|> compStm <|> blockStm <|> callStm)
+
+-- TODO
+decp :: Parser DecP
+decp = parens (ifStm <|> whileStm <|> skipStm <|> assStm <|> compStm <|> blockStm <|> callStm)
+
+
+
+
 
 ifStm :: Parser Stm
 ifStm = do
@@ -108,6 +125,16 @@ compStm = do
     void (symbol ";")
     stm2 <- stm
     return (Comp stm1 stm2)
+
+-- TODO
+blockStm :: Parser Stm
+blockStm = do
+    rword "begin"
+    decv1 <- decv
+    decp1 <- decp
+    stm1 <- stm
+    rword "end"
+    return (Block decv1 decp1 stm1)
 
 testString = "/*fac_loop (p.23)*/\ny:=1;\nwhile !(x=1) do (\n y:=y*x;\n x:=x-1\n)"
 
