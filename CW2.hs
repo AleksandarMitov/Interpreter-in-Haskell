@@ -26,6 +26,21 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
         | If Bexp Stm Stm | While Bexp Stm
         | Block DecV DecP Stm | Call Pname
 
+-- handling whitespace and comments
+sc :: Parser ()
+sc = L.space (void spaceChar) lineCmnt blockCmnt
+    where lineCmnt  = L.skipLineComment "//"
+          blockCmnt = L.skipBlockComment "/*" "*/"
+
+-- wraper for the space consumer
+lexeme :: Parser a -> Parser a
+lexeme = L.lexeme sc
+
+--Since we often want to parse some “fixed” string, let’s define one more parser called symbol.
+--It will take a string as argument and parse this string and whitespace after it.
+symbol :: String -> Parser String
+symbol = L.symbol sc
+
 testString = "/*fac_loop (p.23)*/\ny:=1;\nwhile !(x=1) do (\n y:=y*x;\n x:=x-1\n)"
 
 main = putStrLn "Hello, World!"
