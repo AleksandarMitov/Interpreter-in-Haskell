@@ -57,7 +57,7 @@ whileParser :: Parser Stm
 whileParser = between sc eof stm
 
 stm :: Parser Stm
-stm = parens (ifStmt <|> whileStmt <|> skipStmt <|> assignStmt)
+stm = parens (ifStm <|> whileStm <|> skipStm <|> assStm <|> compStm <|> blockStm <|> callStm)
 
 rword :: String -> Parser ()
 rword w = string w *> notFollowedBy alphaNumChar *> sc
@@ -73,8 +73,8 @@ identifier = (lexeme . try) (p >>= check)
                     then fail $ "keyword " ++ show x ++ " cannot be an identifier"
                   else return x
 
-ifStmt :: Parser Stm
-ifStmt = do
+ifStm :: Parser Stm
+ifStm = do
     rword "if"
     cond  <- bExpr
     rword "then"
@@ -83,23 +83,31 @@ ifStmt = do
     stmt2 <- stm
     return (If cond stmt1 stmt2)
 
-whileStmt :: Parser Stm
-whileStmt = do
+whileStm :: Parser Stm
+whileStm = do
     rword "while"
     cond <- bExpr
     rword "do"
     stmt1 <- stm
     return (While cond stmt1)
 
-assignStmt :: Parser Stm
-assignStmt = do
+assStm :: Parser Stm
+assStm = do
     var  <- identifier
     void (symbol ":=")
     expr <- aExpr
-    return (Assign var expr)
+    return (Ass var expr)
 
-skipStmt :: Parser Stm
-skipStmt = Skip <$ rword "skip"
+skipStm :: Parser Stm
+skipStm = Skip <$ rword "skip"
+
+-- TODO
+compStm :: Parser Stm
+compStm = do
+    stm1  <- stm
+    void (symbol ";")
+    stm2 <- stm
+    return (Comp stm1 stm2)
 
 testString = "/*fac_loop (p.23)*/\ny:=1;\nwhile !(x=1) do (\n y:=y*x;\n x:=x-1\n)"
 
