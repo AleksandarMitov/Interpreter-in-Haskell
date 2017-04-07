@@ -15,8 +15,6 @@ type Pname = String
 type DecV = [(Var,Aexp)]
 type DecP = [(Pname,Stm)]
 type State = Var -> Z
-type Z = Integer
-type T = Bool
 
 data Aexp = N Num | V Var | Mult Aexp Aexp
         | Add Aexp Aexp | Sub Aexp Aexp
@@ -58,8 +56,11 @@ semi = symbol ";"
 rword :: String -> Parser ()
 rword w = string w *> notFollowedBy alphaNumChar *> sc
 
+word :: String -> Parser String
+word w = string w *> sc
+
 rws :: [String] -- list of reserved words
-rws = ["if","then","else","while","do","skip","true","false","not","and","or"]
+rws = ["if","then","else","while","do","skip","true","false","not","&&","||", "call", "proc", "is", ":="]
 
 identifier :: Parser String
 identifier = (lexeme . try) (p >>= check)
@@ -79,14 +80,38 @@ stm :: Parser Stm
 stm = parens (ifStm <|> whileStm <|> skipStm <|> assStm <|> compStm <|> blockStm <|> callStm)
 
 -- TODO
+decvs :: Parser DecV
+decvs = sepBy decv (symbol ";")
+
+-- TODO
 decv :: Parser DecV
-decv = parens (ifStm <|> whileStm <|> skipStm <|> assStm <|> compStm <|> blockStm <|> callStm)
+decv = do
+    rword "var"
+    name <- word
+    rword ":="
+    aexp1 <- aexp
+    return (name, aexp1)
+
+-- TODO
+decps :: Parser DecP
+decps = sepBy decp (symbol ";")
 
 -- TODO
 decp :: Parser DecP
-decp = parens (ifStm <|> whileStm <|> skipStm <|> assStm <|> compStm <|> blockStm <|> callStm)
+decp = do
+    rword "proc"
+    name <- word
+    rword "is"
+    stm1 <- stm
+    return (name, stm1)
 
+-- TODO
+pnames :: Parser Pname
+pnames = many pname
 
+-- TODO
+pname :: Parser Pname
+pname = parens (ifStm <|> whileStm <|> skipStm <|> assStm <|> compStm <|> blockStm <|> callStm)
 
 
 
@@ -135,6 +160,13 @@ blockStm = do
     stm1 <- stm
     rword "end"
     return (Block decv1 decp1 stm1)
+
+-- TODO
+callStm :: Parser Stm
+callStm = do
+    rword "call"
+    pname1 <- pname
+    return (Call pname1)
 
 testString = "/*fac_loop (p.23)*/\ny:=1;\nwhile !(x=1) do (\n y:=y*x;\n x:=x-1\n)"
 
