@@ -14,7 +14,6 @@ type Var = String
 type Pname = String
 type DecV = [(Var,Aexp)]
 type DecP = [(Pname,Stm)]
-type State = Var -> Z
 
 data Aexp = N Num | V Var | Mult Aexp Aexp
         | Add Aexp Aexp | Sub Aexp Aexp
@@ -25,6 +24,8 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
         | Block DecV DecP Stm | Call Pname
 
 --START UTILITY STUFF
+rws :: [String] -- list of reserved words
+rws = ["if","then","else","while","do","skip","true","false","not","&&","||", "call", "proc", "is", ":="]
 
 -- handling whitespace and comments
 sc :: Parser ()
@@ -59,9 +60,6 @@ rword w = string w *> notFollowedBy alphaNumChar *> sc
 word :: String -> Parser String
 word w = string w *> sc
 
-rws :: [String] -- list of reserved words
-rws = ["if","then","else","while","do","skip","true","false","not","&&","||", "call", "proc", "is", ":="]
-
 identifier :: Parser String
 identifier = (lexeme . try) (p >>= check)
     where
@@ -87,7 +85,7 @@ decvs = sepBy decv (symbol ";")
 decv :: Parser DecV
 decv = do
     rword "var"
-    name <- word
+    name <- identifier
     rword ":="
     aexp1 <- aexp
     return (name, aexp1)
@@ -100,25 +98,37 @@ decps = sepBy decp (symbol ";")
 decp :: Parser DecP
 decp = do
     rword "proc"
-    name <- word
+    name <- pname
     rword "is"
     stm1 <- stm
     return (name, stm1)
 
 -- TODO
-pnames :: Parser Pname
-pnames = many pname
+pname :: Parser Pname
+pname = word
 
 -- TODO
-pname :: Parser Pname
-pname = parens (ifStm <|> whileStm <|> skipStm <|> assStm <|> compStm <|> blockStm <|> callStm)
+var :: Parser Var
+var = identifier
+
+-- TODO
+num :: Parser Num
+num = integer
+
+-- TODO
+aexp :: Parser Aexp
+aexp = makeExprParser aTerm aOperators
+
+-- TODO
+bexp :: Parser Bexp
+bexp = makeExprParser bTerm bOperators
 
 
 
 ifStm :: Parser Stm
 ifStm = do
     rword "if"
-    cond  <- bExpr
+    cond  <- bexp
     rword "then"
     stmt1 <- stm
     rword "else"
@@ -128,7 +138,7 @@ ifStm = do
 whileStm :: Parser Stm
 whileStm = do
     rword "while"
-    cond <- bExpr
+    cond <- bexp
     rword "do"
     stmt1 <- stm
     return (While cond stmt1)
@@ -137,7 +147,7 @@ assStm :: Parser Stm
 assStm = do
     var  <- identifier
     void (symbol ":=")
-    expr <- aExpr
+    expr <- aexp
     return (Ass var expr)
 
 skipStm :: Parser Stm
