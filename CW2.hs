@@ -16,12 +16,12 @@ type DecV = [(Var,Aexp)]
 type DecP = [(Pname,Stm)]
 
 data Aexp = N Num | V Var | Mult Aexp Aexp
-        | Add Aexp Aexp | Sub Aexp Aexp
+        | Add Aexp Aexp | Sub Aexp Aexp deriving Show
 data Bexp = TRUE | FALSE | Neg Bexp | And Bexp Bexp
-        | Le Aexp Aexp | Eq Aexp Aexp
+        | Le Aexp Aexp | Eq Aexp Aexp deriving Show
 data Stm = Skip | Ass Var Aexp | Comp Stm Stm
         | If Bexp Stm Stm | While Bexp Stm
-        | Block DecV DecP Stm | Call Pname
+        | Block DecV DecP Stm | Call Pname deriving Show
 
 --START UTILITY STUFF
 rws :: [String] -- list of reserved words
@@ -52,7 +52,7 @@ integer = lexeme L.integer
 
 -- | 'semi' parses a semicolon.
 semi :: Parser String
-semi = symbol ";"
+semi = dbg "sym" (symbol ";")
 
 rword :: String -> Parser ()
 rword w = string w *> notFollowedBy alphaNumChar *> sc
@@ -71,11 +71,11 @@ identifier = (lexeme . try) (p >>= check)
 
 
 
-whileParser :: Parser Stm
-whileParser = between sc eof stm
+prog :: Parser Stm
+prog = between sc eof stm
 
 stm :: Parser Stm
-stm = parens (ifStm <|> whileStm <|> skipStm <|> assStm <|> compStm <|> blockStm <|> callStm)
+stm = assStm <|> ifStm <|> whileStm <|> skipStm <|> compStm <|> blockStm <|> callStm
 
 -- TODO
 decv :: Parser DecV
@@ -116,7 +116,7 @@ num :: Parser Num
 num = integer
 
 aexp :: Parser Aexp
-aexp = makeExprParser aTerm aOperators
+aexp = dbg "aexp" (makeExprParser aTerm aOperators)
 
 bexp :: Parser Bexp
 bexp = makeExprParser bTerm bOperators
@@ -215,9 +215,45 @@ callStm = do
     pname1 <- pname
     return (Call pname1)
 
+--deriving instance Show Aexp
+--deriving instance Show Bexp
+--deriving instance Show Stm
+
+class Pretty a where
+    pretty :: a -> String
+
+instance Pretty Aexp where
+    pretty (N num) = "N " ++ "NUM TODO"
+    pretty (V var) = "V " ++ "VAR TODO"
+    pretty (Mult aexp1 aexp2) = "Mult (" ++ pretty aexp1 ++ ") (" ++ pretty aexp2 ++ ")"
+    pretty (Add aexp1 aexp2) = "Add (" ++ pretty aexp1 ++ ") (" ++ pretty aexp2 ++ ")"
+    pretty (Sub aexp1 aexp2) = "Sub (" ++ pretty aexp1 ++ ") (" ++ pretty aexp2 ++ ")"
+
+instance Pretty Bexp where
+    pretty (TRUE) = "TRUE"
+    pretty (FALSE) = "FALSE"
+    pretty (Neg bexp) = "Neg (" ++ pretty bexp ++ ")"
+    pretty (And bexp1 bexp2) = "And (" ++ pretty bexp1 ++ ") (" ++ pretty bexp2 ++ ")"
+    pretty (Le aexp1 aexp2) = "Le (" ++ pretty aexp1 ++ ") (" ++ pretty aexp2 ++ ")"
+    pretty (Eq aexp1 aexp2) = "Eq (" ++ pretty aexp1 ++ ") (" ++ pretty aexp2 ++ ")"
+
+instance Pretty Stm where
+    pretty (Skip)                = "Skip"
+    pretty (Ass var aexp)        = "Ass \"" ++ "VAR TODO" ++ "\" (" ++ pretty aexp ++ ")"
+    pretty (Comp stm1 stm2)      = "Comp (" ++ pretty stm1 ++ ") (" ++ pretty stm2 ++ ")"
+    pretty (If bexp stm1 stm2)   = "If (" ++ pretty bexp ++ ") (" ++ pretty stm1 ++ ") (" ++ pretty stm2 ++ ")"
+    pretty (While bexp stm)      = "While (" ++ pretty bexp ++ ") (" ++ pretty stm ++ ")"
+    pretty (Block decv decp stm) = "Block (" ++ "DECV TODO" ++ ") (" ++ "DECP TODO" ++ ") (" ++ pretty stm ++ ")"
+    pretty (Call pname)          = "Call (" ++ "PNAME TODO" ++ ")"
+
+
 testString = "/*fac_loop (p.23)*/\ny:=1;\nwhile !(x=1) do (\n y:=y*x;\n x:=x-1\n)"
 
 main = putStrLn "Hello, World!"
 
-parse :: String -> Stm
-parse (str) = Skip
+parseFile :: FilePath -> IO ()
+parseFile filePath = do
+  file <- readFile filePath
+  putStrLn $ case parse prog filePath file of
+    Left err   -> parseErrorPretty err
+    Right prog -> pretty prog
