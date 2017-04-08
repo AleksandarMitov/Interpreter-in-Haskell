@@ -25,7 +25,7 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
 
 --START UTILITY STUFF
 rws :: [String] -- list of reserved words
-rws = ["if","then","else","while","do","skip","true","false","not","&&","||", "call", "proc", "is", ":="]
+rws = ["if","then","else","while","do","skip","true","false","not","&&","||", "call", "proc", "is", ":=", "<=", "="]
 
 -- handling whitespace and comments
 sc :: Parser ()
@@ -115,14 +115,53 @@ var = identifier
 num :: Parser Num
 num = integer
 
--- TODO
 aexp :: Parser Aexp
 aexp = makeExprParser aTerm aOperators
 
--- TODO
 bexp :: Parser Bexp
 bexp = makeExprParser bTerm bOperators
 
+aOperators :: [[Operator Parser Aexp]]
+aOperators =
+  [
+    [ InfixL (Mult <$ symbol "*")]
+  , [ InfixL (Add  <$ symbol "+")
+    , InfixL (Sub  <$ symbol "-") ]
+  ]
+
+bOperators :: [[Operator Parser Bexp]]
+bOperators =
+  [ [Prefix (Neg <$ rword "!") ]
+  , [InfixL (And <$ rword "&&")
+    , InfixL (Le <$ rword "<=")
+    , InfixL (Eq <$ rword "=") ]
+  ]
+
+aTerm :: Parser Aexp
+aTerm = parens aexp
+  <|> V      <$> var
+  <|> N      <$> num
+
+bTerm :: Parser Bexp
+bTerm =  parens bexp
+    <|> (rword "true"  *> pure (TRUE))
+    <|> (rword "false" *> pure (FALSE))
+    <|> le
+    <|> eq
+
+le :: Parser Bexp
+le = do
+    a1 <- aexp
+    op <- rword "<="
+    a2 <- aexp
+    return (Le a1 a2)
+
+eq :: Parser Bexp
+eq = do
+    a1 <- aexp
+    op <- symbol "="
+    a2 <- aexp
+    return (Eq a1 a2)
 
 
 ifStm :: Parser Stm
