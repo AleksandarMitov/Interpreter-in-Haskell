@@ -57,7 +57,7 @@ semi = symbol ";"
 rword :: String -> Parser ()
 rword w = string w *> notFollowedBy alphaNumChar *> sc
 
-word :: String -> Parser String
+word :: String -> Parser ()
 word w = string w *> sc
 
 identifier :: Parser String
@@ -78,12 +78,12 @@ stm :: Parser Stm
 stm = parens (ifStm <|> whileStm <|> skipStm <|> assStm <|> compStm <|> blockStm <|> callStm)
 
 -- TODO
-decvs :: Parser DecV
-decvs = sepBy decv (symbol ";")
+decv :: Parser DecV
+decv = sepBy varpair (symbol ";")
 
 -- TODO
-decv :: Parser DecV
-decv = do
+varpair :: Parser (Var,Aexp)
+varpair = do
     rword "var"
     name <- identifier
     rword ":="
@@ -91,12 +91,12 @@ decv = do
     return (name, aexp1)
 
 -- TODO
-decps :: Parser DecP
-decps = sepBy decp (symbol ";")
+decp :: Parser DecP
+decp = sepBy callpair (symbol ";")
 
 -- TODO
-decp :: Parser DecP
-decp = do
+callpair :: Parser (Pname,Stm)
+callpair = do
     rword "proc"
     name <- pname
     rword "is"
@@ -105,7 +105,7 @@ decp = do
 
 -- TODO
 pname :: Parser Pname
-pname = word
+pname = some alphaNumChar
 
 -- TODO
 var :: Parser Var
@@ -132,9 +132,7 @@ aOperators =
 bOperators :: [[Operator Parser Bexp]]
 bOperators =
   [ [Prefix (Neg <$ rword "!") ]
-  , [InfixL (And <$ rword "&&")
-    , InfixL (Le <$ rword "<=")
-    , InfixL (Eq <$ rword "=") ]
+  , [InfixL (And <$ rword "&&")]
   ]
 
 aTerm :: Parser Aexp
