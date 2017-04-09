@@ -75,18 +75,18 @@ prog :: Parser Stm
 prog = between sc eof (stm)
 
 stm :: Parser Stm
-stm = (try compStm <|> try stmsub)
+stm = dbg "stm" (try compStm <|> try stmsub)
 
 stmsub :: Parser Stm
-stmsub = (try assStm <|> try ifStm <|> try whileStm <|> try skipStm <|> try blockStm <|> try callStm)
+stmsub = dbg "stmsub" (blockStm <|> assStm <|> ifStm <|> whileStm <|> skipStm <|> callStm)
 
 -- TODO
 decv :: Parser DecV
-decv = many varpair
+decv = dbg "decv" (many varpair)
 
 -- TODO
 varpair :: Parser (Var,Aexp)
-varpair =  (do
+varpair =  dbg "varpair" (do
     rword "var"
     name  <- identifier
     sy    <- symbol ":="
@@ -96,15 +96,15 @@ varpair =  (do
 
 -- TODO
 decp :: Parser DecP
-decp = many callpair
+decp = dbg "decp" (many callpair)
 
 -- TODO
 callpair :: Parser (Pname,Stm)
-callpair = (do
+callpair = dbg "callpair" (do
     rword "proc"
     name <- pname
     rword "is"
-    stm1 <- stm
+    stm1 <- stmsub
     scolon <- symbol ";"
     return (name, stm1))
 
@@ -168,7 +168,7 @@ eq = (do
     return (Eq a1 a2))
 
 ifStm :: Parser Stm
-ifStm = dbg "ifStm" (do
+ifStm =  (do
     rword "if"
     cond  <- bexp
     rword "then"
@@ -197,7 +197,7 @@ skipStm = (Skip <$ rword "skip")
 
 -- TODO
 compStm :: Parser Stm
-compStm = (do
+compStm = dbg "compStm"(do
     stm1  <- stmsub
     symb  <- symbol ";"
     stm2  <- stm
@@ -215,7 +215,7 @@ blockStm = dbg "blockStm" (do
 
 -- TODO
 callStm :: Parser Stm
-callStm =  (do
+callStm = dbg "callStm" (do
     rword "call"
     pname1 <- pname
     return (Call pname1))
