@@ -25,7 +25,7 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
 
 --START UTILITY STUFF
 rws :: [String] -- list of reserved words
-rws = ["if","then","else","while","do","skip","true","false","not","call", "proc", "is"]
+rws = ["if","then","else","while","do","skip","true","false","not","call", "proc", "is", "begin", "end", "var"]
 
 -- handling whitespace and comments
 sc :: Parser ()
@@ -40,7 +40,7 @@ lexeme = L.lexeme  (sc)
 --Since we often want to parse some “fixed” string, let’s define one more parser called symbol.
 --It will take a string as argument and parse this string and whitespace after it.
 symbol :: String -> Parser String
-symbol = L.symbol (dbg "symbol" sc)
+symbol = L.symbol ( sc)
 
 -- | 'parens' parses something between parenthesis.
 parens :: Parser a -> Parser a
@@ -52,10 +52,10 @@ integer = lexeme L.integer
 
 -- | 'semi' parses a semicolon.
 semi :: Parser String
-semi = dbg "semi" (symbol ";")
+semi = (symbol ";")
 
 rword :: String -> Parser ()
-rword w = dbg "rword" (string w *> notFollowedBy alphaNumChar *> sc)
+rword w = (string w *> notFollowedBy alphaNumChar *> sc)
 
 word :: String -> Parser ()
 word w = dbg "word" (string w *> sc)
@@ -75,36 +75,38 @@ prog :: Parser Stm
 prog = between sc eof (stm)
 
 stm :: Parser Stm
-stm = dbg "stm" (try compStm <|> try stmsub)
+stm = (try compStm <|> try stmsub)
 
 stmsub :: Parser Stm
-stmsub = dbg "stmsub" (try assStm <|> try ifStm <|> try whileStm <|> try skipStm <|> try blockStm <|> try callStm)
+stmsub = (assStm <|> ifStm <|> whileStm <|> skipStm <|> blockStm <|> callStm)
 
 -- TODO
 decv :: Parser DecV
-decv = dbg "decv" ((sepBy varpair (symbol ";")))
+decv = f <$> sepBy varpair semi
+  where f l = l
 
 -- TODO
 varpair :: Parser (Var,Aexp)
-varpair = do
+varpair =  (do
     rword "var"
     name <- identifier
     symbol ":="
     aexp1 <- aexp
-    return (name, aexp1)
+    return (name, aexp1))
 
 -- TODO
 decp :: Parser DecP
-decp = dbg "decp" ((sepBy callpair (symbol ";")))
+decp = f <$> sepBy callpair semi
+  where f l = l
 
 -- TODO
 callpair :: Parser (Pname,Stm)
-callpair = do
+callpair = (do
     rword "proc"
     name <- pname
     rword "is"
     stm1 <- stm
-    return (name, stm1)
+    return (name, stm1))
 
 -- TODO
 pname :: Parser Pname
@@ -112,17 +114,17 @@ pname = dbg "pname" identifier
 
 -- TODO
 var :: Parser Var
-var = dbg "var" identifier
+var = identifier
 
 -- TODO
 num :: Parser Num
-num = dbg "num" integer
+num = integer
 
 aexp :: Parser Aexp
-aexp = dbg "aexp" (makeExprParser aTerm aOperators)
+aexp = (makeExprParser aTerm aOperators)
 
 bexp :: Parser Bexp
-bexp = dbg "bexp" (makeExprParser bTerm bOperators)
+bexp =  (makeExprParser bTerm bOperators)
 
 aOperators :: [[Operator Parser Aexp]]
 aOperators =
@@ -159,43 +161,43 @@ le = do
     return (Le a1 a2)
 
 eq :: Parser Bexp
-eq = do
+eq = (do
     a1 <- aexp
     op <- symbol "="
     a2 <- aexp
-    return (Eq a1 a2)
+    return (Eq a1 a2))
 
 ifStm :: Parser Stm
-ifStm = do
+ifStm = dbg "ifStm" (do
     rword "if"
     cond  <- bexp
     rword "then"
     stmt1 <- stm
     rword "else"
     stmt2 <- stm
-    return (If cond stmt1 stmt2)
+    return (If cond stmt1 stmt2))
 
 whileStm :: Parser Stm
-whileStm = do
+whileStm = (do
     rword  "while"
     cond   <- bexp
     rword  "do"
     stmt1  <- try (parens stm) <|> try stm
-    return (While cond stmt1)
+    return (While cond stmt1))
 
 assStm :: Parser Stm
-assStm = do
+assStm = dbg "assStm" (do
     var  <- identifier
     void (symbol ":=")
     expr <- aexp
-    return (Ass var expr)
+    return (Ass var expr))
 
 skipStm :: Parser Stm
-skipStm = dbg "skip" (Skip <$ rword "skip")
+skipStm = (Skip <$ rword "skip")
 
 -- TODO
 compStm :: Parser Stm
-compStm = dbg "compStm" (do
+compStm = (do
     stm1  <- stmsub
     symb  <- symbol ";"
     stm2  <- stm
@@ -203,20 +205,20 @@ compStm = dbg "compStm" (do
 
 -- TODO
 blockStm :: Parser Stm
-blockStm = do
+blockStm = dbg "blockStm" (do
     rword "begin"
-    decv1 <- try decv
-    decp1 <- try decp
+    decv1 <- decv
+    decp1 <- decp
     stm1 <- stm
     rword "end"
-    return (Block decv1 decp1 stm1)
+    return (Block decv1 decp1 stm1))
 
 -- TODO
 callStm :: Parser Stm
-callStm = do
+callStm =  (do
     rword "call"
     pname1 <- pname
-    return (Call pname1)
+    return (Call pname1))
 
 --deriving instance Show Aexp
 --deriving instance Show Bexp
