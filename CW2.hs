@@ -82,8 +82,7 @@ stmsub = (try assStm <|> try ifStm <|> try whileStm <|> try skipStm <|> try bloc
 
 -- TODO
 decv :: Parser DecV
-decv = f <$> sepBy varpair semi
-  where f l = l
+decv = many varpair
 
 -- TODO
 varpair :: Parser (Var,Aexp)
@@ -92,12 +91,12 @@ varpair =  (do
     name  <- identifier
     sy    <- symbol ":="
     aexp1 <- aexp
+    scolon <- symbol ";"
     return (name, aexp1))
 
 -- TODO
 decp :: Parser DecP
-decp = f <$> sepBy callpair semi
-  where f l = l
+decp = many callpair
 
 -- TODO
 callpair :: Parser (Pname,Stm)
@@ -106,6 +105,7 @@ callpair = (do
     name <- pname
     rword "is"
     stm1 <- stm
+    scolon <- symbol ";"
     return (name, stm1))
 
 -- TODO
