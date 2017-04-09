@@ -72,10 +72,10 @@ identifier = (lexeme . try) (p >>= check)
 
 
 prog :: Parser Stm
-prog = between sc eof stm
+prog = between sc eof (compStm <|> compStm')
 
 stm :: Parser Stm
-stm = dbg "stm" (assStm <|> ifStm <|> whileStm <|> skipStm <|> compStm <|> blockStm <|> callStm)
+stm = dbg "stm" (assStm <|> ifStm <|> whileStm <|> skipStm <|> blockStm <|> callStm)
 
 -- TODO
 decv :: Parser DecV
@@ -197,6 +197,13 @@ compStm = do
     void (symbol ";")
     stm2 <- stm
     return (Comp stm1 stm2)
+
+-- TODO
+compStm' :: Parser Stm
+compStm' = do
+    stm1  <- stm
+    void (symbol ";")
+    return (stm1)
 
 -- TODO
 blockStm :: Parser Stm
