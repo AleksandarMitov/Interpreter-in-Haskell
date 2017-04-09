@@ -25,7 +25,7 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
 
 --START UTILITY STUFF
 rws :: [String] -- list of reserved words
-rws = ["if","then","else","while","do","skip","true","false","not","&&","||", "call", "proc", "is"]
+rws = ["if","then","else","while","do","skip","true","false","not","call", "proc", "is"]
 
 -- handling whitespace and comments
 sc :: Parser ()
@@ -33,7 +33,7 @@ sc = (L.space (void spaceChar) lineCmnt blockCmnt)
     where lineCmnt  = L.skipLineComment "//"
           blockCmnt = L.skipBlockComment "/*" "*/"
 
--- wraper for the space consumer
+-- wrapper for the space consumer
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme  (sc)
 
@@ -75,27 +75,27 @@ prog :: Parser Stm
 prog = between sc eof (stm)
 
 stm :: Parser Stm
-stm = dbg "stm" (try compStm <|> stmsub)
+stm = dbg "stm" (try compStm <|> try stmsub)
 
 stmsub :: Parser Stm
-stmsub = dbg "stmsub" (assStm <|> ifStm <|> whileStm <|> skipStm <|> blockStm <|> callStm)
+stmsub = dbg "stmsub" (try assStm <|> try ifStm <|> try whileStm <|> try skipStm <|> try blockStm <|> try callStm)
 
 -- TODO
 decv :: Parser DecV
-decv = dbg "decv" (sepBy varpair (symbol ";"))
+decv = dbg "decv" (try (sepBy varpair (symbol ";")))
 
 -- TODO
 varpair :: Parser (Var,Aexp)
 varpair = do
     rword "var"
     name <- identifier
-    rword ":="
+    symbol ":="
     aexp1 <- aexp
     return (name, aexp1)
 
 -- TODO
 decp :: Parser DecP
-decp = dbg "decp" (sepBy callpair (symbol ";"))
+decp = dbg "decp" (try (sepBy callpair (symbol ";")))
 
 -- TODO
 callpair :: Parser (Pname,Stm)
@@ -108,7 +108,7 @@ callpair = do
 
 -- TODO
 pname :: Parser Pname
-pname = dbg "pname" (some alphaNumChar)
+pname = dbg "pname" identifier
 
 -- TODO
 var :: Parser Var
@@ -145,9 +145,10 @@ aTerm = parens aexp
 
 bTerm :: Parser Bexp
 bTerm =  parens bexp
-    <|> (rword "true"  *> pure (TRUE))
-    <|> (rword "false" *> pure (FALSE))
-    <|> (eq <|> le)
+    <|> try (rword "true"  *> pure (TRUE))
+    <|> try (rword "false" *> pure (FALSE))
+    <|> try le
+    <|> try eq
 
 
 le :: Parser Bexp
@@ -164,7 +165,6 @@ eq = do
     a2 <- aexp
     return (Eq a1 a2)
 
-
 ifStm :: Parser Stm
 ifStm = do
     rword "if"
@@ -177,10 +177,10 @@ ifStm = do
 
 whileStm :: Parser Stm
 whileStm = do
-    rword "while"
-    cond <- bexp
-    rword "do"
-    stmt1 <- parens stm
+    rword  "while"
+    cond   <- bexp
+    rword  "do"
+    stmt1  <- try (parens stm) <|> try stm
     return (While cond stmt1)
 
 assStm :: Parser Stm
@@ -197,7 +197,7 @@ skipStm = dbg "skip" (Skip <$ rword "skip")
 compStm :: Parser Stm
 compStm = dbg "compStm" (do
     stm1  <- stmsub
-    sy    <- (symbol ";")
+    symb  <- symbol ";"
     stm2  <- stm
     return (Comp stm1 stm2))
 
