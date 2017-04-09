@@ -78,7 +78,7 @@ stm :: Parser Stm
 stm = (try compStm <|> try stmsub)
 
 stmsub :: Parser Stm
-stmsub = (assStm <|> ifStm <|> whileStm <|> skipStm <|> blockStm <|> callStm)
+stmsub = (try assStm <|> try ifStm <|> try whileStm <|> try skipStm <|> try blockStm <|> try callStm)
 
 -- TODO
 decv :: Parser DecV
@@ -89,8 +89,8 @@ decv = f <$> sepBy varpair semi
 varpair :: Parser (Var,Aexp)
 varpair =  (do
     rword "var"
-    name <- identifier
-    symbol ":="
+    name  <- identifier
+    sy    <- symbol ":="
     aexp1 <- aexp
     return (name, aexp1))
 
