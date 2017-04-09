@@ -25,7 +25,7 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
 
 --START UTILITY STUFF
 rws :: [String] -- list of reserved words
-rws = ["if","then","else","while","do","skip","true","false","not","&&","||", "call", "proc", "is", ":=", "<=", "="]
+rws = ["if","then","else","while","do","skip","true","false","not","&&","||", "call", "proc", "is"]
 
 -- handling whitespace and comments
 sc :: Parser ()
@@ -72,10 +72,13 @@ identifier = (lexeme . try) (p >>= check)
 
 
 prog :: Parser Stm
-prog = between sc eof (compStm <|> compStm')
+prog = between sc eof (stm)
 
 stm :: Parser Stm
-stm = dbg "stm" (assStm <|> ifStm <|> whileStm <|> skipStm <|> blockStm <|> callStm)
+stm = dbg "stm" (compStm <|> stmsub)
+
+stmsub :: Parser Stm
+stmsub = dbg "stmsub" (assStm <|> ifStm <|> whileStm <|> skipStm <|> blockStm <|> callStm)
 
 -- TODO
 decv :: Parser DecV
@@ -144,13 +147,13 @@ bTerm :: Parser Bexp
 bTerm =  parens bexp
     <|> (rword "true"  *> pure (TRUE))
     <|> (rword "false" *> pure (FALSE))
-    <|> le
-    <|> eq
+    <|> (eq <|> le)
+
 
 le :: Parser Bexp
 le = do
     a1 <- aexp
-    op <- rword "<="
+    op <- symbol "<="
     a2 <- aexp
     return (Le a1 a2)
 
@@ -177,7 +180,7 @@ whileStm = do
     rword "while"
     cond <- bexp
     rword "do"
-    stmt1 <- stm
+    stmt1 <- parens stm
     return (While cond stmt1)
 
 assStm :: Parser Stm
@@ -193,17 +196,10 @@ skipStm = dbg "skip" (Skip <$ rword "skip")
 -- TODO
 compStm :: Parser Stm
 compStm = do
-    stm1  <- stm
+    stm1  <- stmsub
     void (symbol ";")
-    stm2 <- stm
+    stm2 <- stmsub
     return (Comp stm1 stm2)
-
--- TODO
-compStm' :: Parser Stm
-compStm' = do
-    stm1  <- stm
-    void (symbol ";")
-    return (stm1)
 
 -- TODO
 blockStm :: Parser Stm
