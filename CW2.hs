@@ -82,7 +82,7 @@ stmsub = dbg "stmsub" (try assStm <|> try ifStm <|> try whileStm <|> try skipStm
 
 -- TODO
 decv :: Parser DecV
-decv = dbg "decv" (try (sepBy varpair (symbol ";")))
+decv = dbg "decv" ((sepBy varpair (symbol ";")))
 
 -- TODO
 varpair :: Parser (Var,Aexp)
@@ -95,7 +95,7 @@ varpair = do
 
 -- TODO
 decp :: Parser DecP
-decp = dbg "decp" (try (sepBy callpair (symbol ";")))
+decp = dbg "decp" ((sepBy callpair (symbol ";")))
 
 -- TODO
 callpair :: Parser (Pname,Stm)
@@ -205,8 +205,8 @@ compStm = dbg "compStm" (do
 blockStm :: Parser Stm
 blockStm = do
     rword "begin"
-    decv1 <- decv
-    decp1 <- decp
+    decv1 <- try decv
+    decp1 <- try decp
     stm1 <- stm
     rword "end"
     return (Block decv1 decp1 stm1)
