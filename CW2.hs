@@ -46,13 +46,9 @@ symbol = L.symbol ( sc)
 parens :: Parser a -> Parser a
 parens = (between (symbol "(") (symbol ")"))
 
--- | 'integer' parses an integer.
-integer :: Parser Integer
-integer = lexeme L.integer
-
--- | 'semi' parses a semicolon.
-semi :: Parser String
-semi = (symbol ";")
+-- | 'num' parses an integer.
+num :: Parser Integer
+num = lexeme L.integer
 
 rword :: String -> Parser ()
 rword w = (string w *> notFollowedBy alphaNumChar *> sc)
@@ -69,10 +65,13 @@ identifier = (lexeme . try) (p >>= check)
                   else return x
 --END UTILITY STUFF
 
-
-
 prog :: Parser Stm
 prog = between sc eof (stm)
+
+parseS :: String -> Stm
+parseS (str) = case (parse prog "" str) of
+         Left err -> Skip
+         Right stm -> stm
 
 stm :: Parser Stm
 stm = dbg "stm" (try compStm <|> try stmsub)
@@ -89,9 +88,9 @@ varpair :: Parser (Var,Aexp)
 varpair =  dbg "varpair" (do
     rword "var"
     name  <- identifier
-    sy    <- symbol ":="
+    symbol ":="
     aexp1 <- aexp
-    scolon <- symbol ";"
+    symbol ";"
     return (name, aexp1))
 
 -- TODO
@@ -102,23 +101,11 @@ decp = dbg "decp" (many callpair)
 callpair :: Parser (Pname,Stm)
 callpair = dbg "callpair" (do
     rword "proc"
-    name <- pname
+    name <- identifier
     rword "is"
     stm1 <- stmsub
-    scolon <- symbol ";"
+    symbol ";"
     return (name, stm1))
-
--- TODO
-pname :: Parser Pname
-pname = dbg "pname" identifier
-
--- TODO
-var :: Parser Var
-var = identifier
-
--- TODO
-num :: Parser Num
-num = integer
 
 aexp :: Parser Aexp
 aexp = (makeExprParser aTerm aOperators)
@@ -142,7 +129,7 @@ bOperators =
 
 aTerm :: Parser Aexp
 aTerm = parens aexp
-  <|> V      <$> var
+  <|> V      <$> identifier
   <|> N      <$> num
 
 bTerm :: Parser Bexp
@@ -152,18 +139,17 @@ bTerm =  parens bexp
     <|> try le
     <|> try eq
 
-
 le :: Parser Bexp
 le = do
     a1 <- aexp
-    op <- symbol "<="
+    symbol "<="
     a2 <- aexp
     return (Le a1 a2)
 
 eq :: Parser Bexp
 eq = (do
     a1 <- aexp
-    op <- symbol "="
+    symbol "="
     a2 <- aexp
     return (Eq a1 a2))
 
@@ -188,7 +174,7 @@ whileStm = (do
 assStm :: Parser Stm
 assStm = dbg "assStm" (do
     var  <- identifier
-    void (symbol ":=")
+    symbol ":="
     expr <- aexp
     return (Ass var expr))
 
@@ -199,7 +185,7 @@ skipStm = (Skip <$ rword "skip")
 compStm :: Parser Stm
 compStm = dbg "compStm"(do
     stm1  <- stmsub
-    symb  <- symbol ";"
+    symbol ";"
     stm2  <- stm
     return (Comp stm1 stm2))
 
@@ -217,7 +203,7 @@ blockStm = dbg "blockStm" (do
 callStm :: Parser Stm
 callStm = dbg "callStm" (do
     rword "call"
-    pname1 <- pname
+    pname1 <- identifier
     return (Call pname1))
 
 --deriving instance Show Aexp
@@ -254,7 +240,7 @@ instance Pretty Stm where
 
 testString = "/*fac_loop (p.23)*/\ny:=1;\nwhile !(x=1) do (\n y:=y*x;\n x:=x-1\n)"
 
-main = putStrLn "Hello, World!"
+main = putStrLn (pretty (parseS testString))
 
 parseFile :: FilePath -> IO ()
 parseFile filePath = do
