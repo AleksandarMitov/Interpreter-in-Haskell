@@ -75,7 +75,7 @@ prog :: Parser Stm
 prog = between sc eof (stm)
 
 stm :: Parser Stm
-stm = dbg "stm" (compStm <|> stmsub)
+stm = dbg "stm" (try compStm <|> stmsub)
 
 stmsub :: Parser Stm
 stmsub = dbg "stmsub" (assStm <|> ifStm <|> whileStm <|> skipStm <|> blockStm <|> callStm)
@@ -195,11 +195,11 @@ skipStm = dbg "skip" (Skip <$ rword "skip")
 
 -- TODO
 compStm :: Parser Stm
-compStm = do
+compStm = dbg "compStm" (do
     stm1  <- stmsub
-    void (symbol ";")
-    stm2 <- stmsub
-    return (Comp stm1 stm2)
+    sy    <- (symbol ";")
+    stm2  <- stm
+    return (Comp stm1 stm2))
 
 -- TODO
 blockStm :: Parser Stm
