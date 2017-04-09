@@ -29,22 +29,22 @@ rws = ["if","then","else","while","do","skip","true","false","not","&&","||", "c
 
 -- handling whitespace and comments
 sc :: Parser ()
-sc = L.space (void spaceChar) lineCmnt blockCmnt
+sc = (L.space (void spaceChar) lineCmnt blockCmnt)
     where lineCmnt  = L.skipLineComment "//"
           blockCmnt = L.skipBlockComment "/*" "*/"
 
 -- wraper for the space consumer
 lexeme :: Parser a -> Parser a
-lexeme = L.lexeme sc
+lexeme = L.lexeme  (sc)
 
 --Since we often want to parse some “fixed” string, let’s define one more parser called symbol.
 --It will take a string as argument and parse this string and whitespace after it.
 symbol :: String -> Parser String
-symbol = L.symbol sc
+symbol = L.symbol (dbg "symbol" sc)
 
 -- | 'parens' parses something between parenthesis.
 parens :: Parser a -> Parser a
-parens = between (symbol "(") (symbol ")")
+parens = (between (symbol "(") (symbol ")"))
 
 -- | 'integer' parses an integer.
 integer :: Parser Integer
@@ -52,13 +52,13 @@ integer = lexeme L.integer
 
 -- | 'semi' parses a semicolon.
 semi :: Parser String
-semi = dbg "sym" (symbol ";")
+semi = dbg "semi" (symbol ";")
 
 rword :: String -> Parser ()
-rword w = string w *> notFollowedBy alphaNumChar *> sc
+rword w = dbg "rword" (string w *> notFollowedBy alphaNumChar *> sc)
 
 word :: String -> Parser ()
-word w = string w *> sc
+word w = dbg "word" (string w *> sc)
 
 identifier :: Parser String
 identifier = (lexeme . try) (p >>= check)
@@ -75,11 +75,11 @@ prog :: Parser Stm
 prog = between sc eof stm
 
 stm :: Parser Stm
-stm = assStm <|> ifStm <|> whileStm <|> skipStm <|> compStm <|> blockStm <|> callStm
+stm = dbg "stm" (assStm <|> ifStm <|> whileStm <|> skipStm <|> compStm <|> blockStm <|> callStm)
 
 -- TODO
 decv :: Parser DecV
-decv = sepBy varpair (symbol ";")
+decv = dbg "decv" (sepBy varpair (symbol ";"))
 
 -- TODO
 varpair :: Parser (Var,Aexp)
@@ -92,7 +92,7 @@ varpair = do
 
 -- TODO
 decp :: Parser DecP
-decp = sepBy callpair (symbol ";")
+decp = dbg "decp" (sepBy callpair (symbol ";"))
 
 -- TODO
 callpair :: Parser (Pname,Stm)
@@ -105,21 +105,21 @@ callpair = do
 
 -- TODO
 pname :: Parser Pname
-pname = some alphaNumChar
+pname = dbg "pname" (some alphaNumChar)
 
 -- TODO
 var :: Parser Var
-var = identifier
+var = dbg "var" identifier
 
 -- TODO
 num :: Parser Num
-num = integer
+num = dbg "num" integer
 
 aexp :: Parser Aexp
 aexp = dbg "aexp" (makeExprParser aTerm aOperators)
 
 bexp :: Parser Bexp
-bexp = makeExprParser bTerm bOperators
+bexp = dbg "bexp" (makeExprParser bTerm bOperators)
 
 aOperators :: [[Operator Parser Aexp]]
 aOperators =
@@ -188,7 +188,7 @@ assStm = do
     return (Ass var expr)
 
 skipStm :: Parser Stm
-skipStm = Skip <$ rword "skip"
+skipStm = dbg "skip" (Skip <$ rword "skip")
 
 -- TODO
 compStm :: Parser Stm
