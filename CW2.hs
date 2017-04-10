@@ -62,7 +62,8 @@ identifier = (lexeme . try) (p >>= check)
 --END UTILITY STUFF
 
 stm :: Parser Stm
-stm = dbg "stm" (try compStm <|> try stmsub)
+stm = (makeExprParser cTerm cOperators)
+--stm = (try compStm <|> try stmsub)
 
 stmsub :: Parser Stm
 stmsub = dbg "stmsub" (blockStm <|> assStm <|> ifStm <|> whileStm <|> skipStm <|> callStm)
@@ -103,9 +104,14 @@ aOperators =
 
 bOperators :: [[Operator Parser Bexp]]
 bOperators =
-  [ [Prefix (Neg <$ rword "!") ]
-  , [InfixL (And <$ rword "&")]
+  [ [Prefix (Neg <$ symbol "!") ]
+  , [InfixL (And <$ symbol "&")]
   ]
+
+cOperators :: [[Operator Parser Stm]]
+cOperators =
+    [ [InfixR (Comp <$ symbol ";") ]
+    ]
 
 aTerm :: Parser Aexp
 aTerm = parens aexp
@@ -118,6 +124,9 @@ bTerm =  parens bexp
     <|> try (rword "false" *> pure (FALSE))
     <|> try le
     <|> try eq
+
+cTerm :: Parser Stm
+cTerm = try (parens stm) <|> blockStm <|> assStm <|> ifStm <|> whileStm <|> skipStm <|> callStm
 
 le :: Parser Bexp
 le = do
@@ -152,7 +161,7 @@ whileStm = (do
     return (While cond stmt1))
 
 assStm :: Parser Stm
-assStm = dbg "assStm" (do
+assStm = (do
     var  <- identifier
     symbol ":="
     expr <- aexp
@@ -163,7 +172,7 @@ skipStm = (Skip <$ rword "skip")
 
 -- TODO
 compStm :: Parser Stm
-compStm = dbg "compStm"(do
+compStm = (do
     stm1  <- stmsub
     symbol ";"
     stm2  <- stm
@@ -171,7 +180,7 @@ compStm = dbg "compStm"(do
 
 -- TODO
 blockStm :: Parser Stm
-blockStm = dbg "blockStm" (do
+blockStm =  (do
     rword "begin"
     decv1 <- decv
     decp1 <- decp
@@ -181,7 +190,7 @@ blockStm = dbg "blockStm" (do
 
 -- TODO
 callStm :: Parser Stm
-callStm = dbg "callStm" (do
+callStm = (do
     rword "call"
     pname1 <- identifier
     return (Call pname1))
