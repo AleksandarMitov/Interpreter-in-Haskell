@@ -4,7 +4,7 @@ import Prelude hiding (Num)
 import qualified Prelude (Num)
 import Control.Monad (void)
 import Data.List (intercalate)
-import Text.Megaparsec
+import Text.Megaparsec hiding (parse)
 import Text.Megaparsec.Expr
 import Text.Megaparsec.String -- input stream is of type ‘String’
 import qualified Text.Megaparsec.Lexer as L
@@ -16,12 +16,12 @@ type DecV = [(Var,Aexp)]
 type DecP = [(Pname,Stm)]
 
 data Aexp = N Num | V Var | Mult Aexp Aexp
-        | Add Aexp Aexp | Sub Aexp Aexp deriving Show
+        | Add Aexp Aexp | Sub Aexp Aexp deriving (Show, Eq, Read)
 data Bexp = TRUE | FALSE | Neg Bexp | And Bexp Bexp
-        | Le Aexp Aexp | Eq Aexp Aexp deriving Show
+        | Le Aexp Aexp | Eq Aexp Aexp deriving (Show, Eq, Read)
 data Stm = Skip | Ass Var Aexp | Comp Stm Stm
         | If Bexp Stm Stm | While Bexp Stm
-        | Block DecV DecP Stm | Call Pname deriving Show
+        | Block DecV DecP Stm | Call Pname deriving (Show, Eq, Read)
 
 --START UTILITY STUFF
 rws :: [String] -- list of reserved words
@@ -67,11 +67,6 @@ identifier = (lexeme . try) (p >>= check)
 
 prog :: Parser Stm
 prog = between sc eof (stm)
-
-parseS :: String -> Stm
-parseS (str) = case (parse prog "" str) of
-         Left err -> Skip
-         Right stm -> stm
 
 stm :: Parser Stm
 stm = dbg "stm" (try compStm <|> try stmsub)
@@ -124,7 +119,7 @@ aOperators =
 bOperators :: [[Operator Parser Bexp]]
 bOperators =
   [ [Prefix (Neg <$ rword "!") ]
-  , [InfixL (And <$ rword "&&")]
+  , [InfixL (And <$ rword "&")]
   ]
 
 aTerm :: Parser Aexp
@@ -206,45 +201,18 @@ callStm = dbg "callStm" (do
     pname1 <- identifier
     return (Call pname1))
 
---deriving instance Show Aexp
---deriving instance Show Bexp
---deriving instance Show Stm
-
-class Pretty a where
-    pretty :: a -> String
-
-instance Pretty Aexp where
-    pretty (N num) = "N " ++ "NUM TODO"
-    pretty (V var) = "V " ++ "VAR TODO"
-    pretty (Mult aexp1 aexp2) = "Mult (" ++ pretty aexp1 ++ ") (" ++ pretty aexp2 ++ ")"
-    pretty (Add aexp1 aexp2) = "Add (" ++ pretty aexp1 ++ ") (" ++ pretty aexp2 ++ ")"
-    pretty (Sub aexp1 aexp2) = "Sub (" ++ pretty aexp1 ++ ") (" ++ pretty aexp2 ++ ")"
-
-instance Pretty Bexp where
-    pretty (TRUE) = "TRUE"
-    pretty (FALSE) = "FALSE"
-    pretty (Neg bexp) = "Neg (" ++ pretty bexp ++ ")"
-    pretty (And bexp1 bexp2) = "And (" ++ pretty bexp1 ++ ") (" ++ pretty bexp2 ++ ")"
-    pretty (Le aexp1 aexp2) = "Le (" ++ pretty aexp1 ++ ") (" ++ pretty aexp2 ++ ")"
-    pretty (Eq aexp1 aexp2) = "Eq (" ++ pretty aexp1 ++ ") (" ++ pretty aexp2 ++ ")"
-
-instance Pretty Stm where
-    pretty (Skip)                = "Skip"
-    pretty (Ass var aexp)        = "Ass \"" ++ "VAR TODO" ++ "\" (" ++ pretty aexp ++ ")"
-    pretty (Comp stm1 stm2)      = "Comp (" ++ pretty stm1 ++ ") (" ++ pretty stm2 ++ ")"
-    pretty (If bexp stm1 stm2)   = "If (" ++ pretty bexp ++ ") (" ++ pretty stm1 ++ ") (" ++ pretty stm2 ++ ")"
-    pretty (While bexp stm)      = "While (" ++ pretty bexp ++ ") (" ++ pretty stm ++ ")"
-    pretty (Block decv decp stm) = "Block (" ++ "DECV TODO" ++ ") (" ++ "DECP TODO" ++ ") (" ++ pretty stm ++ ")"
-    pretty (Call pname)          = "Call (" ++ "PNAME TODO" ++ ")"
-
-
 testString = "/*fac_loop (p.23)*/\ny:=1;\nwhile !(x=1) do (\n y:=y*x;\n x:=x-1\n)"
 
-main = putStrLn (pretty (parseS testString))
+main = putStrLn (show (parse testString))
+
+parse :: String -> Stm
+parse (str) = case (parseMaybe prog str) of
+         Just result -> result
+         Nothing -> Skip
 
 parseFile :: FilePath -> IO ()
 parseFile filePath = do
   file <- readFile filePath
-  putStrLn $ case parse prog filePath file of
-    Left err   -> parseErrorPretty err
-    Right prog -> pretty prog
+  putStrLn $ case parseMaybe prog file of
+    Nothing   -> show Skip
+    Just prog -> show prog
