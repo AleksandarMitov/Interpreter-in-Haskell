@@ -76,11 +76,7 @@ stmsub = dbg "stmsub" (blockStm <|> assStm <|> ifStm <|> whileStm <|> skipStm <|
 
 -- TODO
 decv :: Parser DecV
-decv = dbg "decv" (many varpair)
-
--- TODO
-varpair :: Parser (Var,Aexp)
-varpair =  dbg "varpair" (do
+decv = many (do
     rword "var"
     name  <- identifier
     symbol ":="
@@ -90,11 +86,7 @@ varpair =  dbg "varpair" (do
 
 -- TODO
 decp :: Parser DecP
-decp = dbg "decp" (many callpair)
-
--- TODO
-callpair :: Parser (Pname,Stm)
-callpair = dbg "callpair" (do
+decp = many (do
     rword "proc"
     name <- identifier
     rword "is"
