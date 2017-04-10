@@ -1,7 +1,6 @@
 module Main where
 import Control.Applicative
 import Prelude hiding (Num)
-import qualified Prelude (Num)
 import Control.Monad (void)
 import Data.List (intercalate)
 import Text.Megaparsec hiding (parse)
@@ -53,9 +52,6 @@ num = lexeme L.integer
 rword :: String -> Parser ()
 rword w = (string w *> notFollowedBy alphaNumChar *> sc)
 
-word :: String -> Parser ()
-word w = dbg "word" (string w *> sc)
-
 identifier :: Parser String
 identifier = (lexeme . try) (p >>= check)
     where
@@ -64,9 +60,6 @@ identifier = (lexeme . try) (p >>= check)
                     then fail $ "keyword " ++ show x ++ " cannot be an identifier"
                   else return x
 --END UTILITY STUFF
-
-prog :: Parser Stm
-prog = between sc eof (stm)
 
 stm :: Parser Stm
 stm = dbg "stm" (try compStm <|> try stmsub)
@@ -198,13 +191,13 @@ testString = "/*fac_loop (p.23)*/\ny:=1;\nwhile !(x=1) do (\n y:=y*x;\n x:=x-1\n
 main = putStrLn (show (parse testString))
 
 parse :: String -> Stm
-parse (str) = case (parseMaybe prog str) of
-         Just result -> result
-         Nothing -> Skip
+parse str = case (parseMaybe (between sc eof stm) str) of
+    Just result -> result
+    Nothing -> Skip
 
 parseFile :: FilePath -> IO ()
 parseFile filePath = do
   file <- readFile filePath
-  putStrLn $ case parseMaybe prog file of
+  putStrLn $ case parseMaybe (between sc eof stm) file of
     Nothing   -> show Skip
     Just prog -> show prog
