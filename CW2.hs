@@ -81,22 +81,10 @@ aexp_operators =
   , [ InfixL (Add  <$ symbol "+")
     , InfixL (Sub  <$ symbol "-") ]
   ]
+
 --Parses a Bexp
 bexp :: Parser Bexp
 bexp = makeExprParser bexp_terms bexp_operators
-
---Operators table for Bexp expressions
-bexp_operators :: [[Operator Parser Bexp]]
-bexp_operators =
-  [ [Prefix (Neg <$ symbol "!") ]
-  , [InfixL (And <$ symbol "&")]
-  ]
-
---Operators table for Stm expressions
-stm_operators :: [[Operator Parser Stm]]
-stm_operators =
-    [ [InfixR (Comp <$ symbol ";") ]
-    ]
 
 --Terms for the Bexp expression parser bexp
 bexp_terms :: Parser Bexp
@@ -106,33 +94,46 @@ bexp_terms =  parens bexp
     <|> try le
     <|> try eq
 
+--Operators table for Bexp expressions
+bexp_operators :: [[Operator Parser Bexp]]
+bexp_operators =
+  [ [Prefix (Neg <$ symbol "!") ]
+  , [InfixL (And <$ symbol "&")]
+  ]
+
+--Parses an Le boolean expression
+le :: Parser Bexp
+le = do
+  a1 <- aexp
+  symbol "<="
+  a2 <- aexp
+  return (Le a1 a2)
+
+--Parses an Eq boolean expression
+eq :: Parser Bexp
+eq = (do
+  a1 <- aexp
+  symbol "="
+  a2 <- aexp
+  return (Eq a1 a2))
+
 --Parses an Stm
 stm :: Parser Stm
-stm =  makeExprParser stm_terms stm_operators
-
---Parser for a base Stm
-stm_base :: Parser Stm
-stm_base = dbg "stm_base" (blockStm <|> ifStm <|> whileStm <|> skipStm <|> callStm <|> assStm)
+stm = makeExprParser stm_terms stm_operators
 
 --Terms for the Stm expression parser stm
 stm_terms :: Parser Stm
 stm_terms = dbg "stm_terms" (parens stm <|> blockStm <|> ifStm <|> whileStm <|> skipStm <|> callStm <|> assStm)
 
---Parses an Le boolean expression
-le :: Parser Bexp
-le = do
-    a1 <- aexp
-    symbol "<="
-    a2 <- aexp
-    return (Le a1 a2)
+--Operators table for Stm expressions
+stm_operators :: [[Operator Parser Stm]]
+stm_operators =
+    [ [InfixR (Comp <$ symbol ";") ]
+    ]
 
---Parses an Eq boolean expression
-eq :: Parser Bexp
-eq = (do
-    a1 <- aexp
-    symbol "="
-    a2 <- aexp
-    return (Eq a1 a2))
+--Parser for a base Stm
+stm_base :: Parser Stm
+stm_base = dbg "stm_base" (blockStm <|> ifStm <|> whileStm <|> skipStm <|> callStm <|> assStm)
 
 --Parses an if statement
 ifStm :: Parser Stm
@@ -166,6 +167,13 @@ assStm = dbg "assStm" (do
 skipStm :: Parser Stm
 skipStm = dbg "skipStm" (Skip <$ rword "skip")
 
+--Parses a call statement
+callStm :: Parser Stm
+callStm = dbg "callStm" (do
+    rword "call"
+    pname1 <- var
+    return (Call pname1))
+
 --Parses a block statement
 blockStm :: Parser Stm
 blockStm = dbg "blockStm" (do
@@ -196,14 +204,8 @@ decp = dbg "decp" (many (do
     symbol ";"
     return (name, stm1)))
 
---Parses a call statement
-callStm :: Parser Stm
-callStm = dbg "callStm" (do
-    rword "call"
-    pname1 <- var
-    return (Call pname1))
-
 --Parses the string and returns the resulting AST
+--Returns Skip on failure
 parse :: String -> Stm
 parse str = case (parseMaybe (between space_consumer eof stm) str) of
     Just result -> result
