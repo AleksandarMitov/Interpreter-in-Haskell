@@ -69,17 +69,14 @@ aexp = makeExprParser aexp_terms aexp_operators
 
 --Terms for the Aexp expression parser aexp
 aexp_terms :: Parser Aexp
-aexp_terms = parens aexp
-    <|> V      <$> var
-    <|> N      <$> num
+aexp_terms = parens aexp <|> V <$> var <|> N <$> num
 
 --Operators table for Aexp expressions
 aexp_operators :: [[Operator Parser Aexp]]
 aexp_operators =
   [
-    [ InfixL (Mult <$ symbol "*")]
-  , [ InfixL (Add  <$ symbol "+")
-    , InfixL (Sub  <$ symbol "-") ]
+    [ InfixL (Mult <$ symbol "*") ],
+    [ InfixL (Add  <$ symbol "+"), InfixL (Sub <$ symbol "-") ]
   ]
 
 --Parses a Bexp
@@ -97,8 +94,9 @@ bexp_terms =  parens bexp
 --Operators table for Bexp expressions
 bexp_operators :: [[Operator Parser Bexp]]
 bexp_operators =
-  [ [Prefix (Neg <$ symbol "!") ]
-  , [InfixL (And <$ symbol "&")]
+  [
+    [ Prefix (Neg <$ symbol "!") ],
+    [ InfixL (And <$ symbol "&") ]
   ]
 
 --Parses an Le boolean expression
@@ -128,8 +126,9 @@ stm_terms = dbg "stm_terms" (parens stm <|> blockStm <|> ifStm <|> whileStm <|> 
 --Operators table for Stm expressions
 stm_operators :: [[Operator Parser Stm]]
 stm_operators =
-    [ [InfixR (Comp <$ symbol ";") ]
-    ]
+  [
+    [ InfixR (Comp <$ symbol ";") ]
+  ]
 
 --Parser for a base Stm
 stm_base :: Parser Stm
