@@ -1,12 +1,12 @@
-module Main where
+module ProcParser where
 import Control.Applicative
 import Prelude hiding (Num)
 import Control.Monad (void)
 import Data.List (intercalate)
 import Text.Megaparsec hiding (parse)
 import Text.Megaparsec.Expr
-import Text.Megaparsec.String -- input stream is of type ‘String’
-import qualified Text.Megaparsec.Lexer as L
+import Text.Megaparsec.String
+import qualified Text.Megaparsec.Lexer as Lexer
 
 type Num = Integer
 type Var = String
@@ -23,111 +23,102 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
         | Block DecV DecP Stm | Call Pname deriving (Show, Eq, Read)
 
 --START UTILITY STUFF
-rws :: [String] -- list of reserved words
-rws = ["if","then","else","while","do","skip","true","false","not","call", "proc", "is", "begin", "end", "var"]
+--List of the Proc language's reserved words
+reserved_words :: [String]
+reserved_words = ["if","then","else","while","do","skip","true","false","not","call", "proc", "is", "begin", "end", "var"]
 
--- handling whitespace and comments
-sc :: Parser ()
-sc = (L.space (void spaceChar) lineCmnt blockCmnt)
-    where lineCmnt  = L.skipLineComment "//"
-          blockCmnt = L.skipBlockComment "/*" "*/"
+--Handling whitespace and comments
+space_consumer :: Parser ()
+space_consumer = (Lexer.space (void spaceChar) lineCmnt blockCmnt)
+    where lineCmnt  = Lexer.skipLineComment "//"
+          blockCmnt = Lexer.skipBlockComment "/*" "*/"
 
--- wrapper for the space consumer
+--Wrapper for the space consumer
 lexeme :: Parser a -> Parser a
-lexeme = L.lexeme  (sc)
+lexeme = Lexer.lexeme space_consumer
 
---Since we often want to parse some “fixed” string, let’s define one more parser called symbol.
---It will take a string as argument and parse this string and whitespace after it.
+--Parses a string and any whitespace after it
 symbol :: String -> Parser String
-symbol = L.symbol ( sc)
+symbol = Lexer.symbol space_consumer
 
--- | 'parens' parses something between parenthesis.
+--Parses something between parentheses
 parens :: Parser a -> Parser a
-parens = (between (symbol "(") (symbol ")"))
+parens = between (symbol "(") (symbol ")")
 
--- | 'num' parses an integer.
-num :: Parser Integer
-num = lexeme L.integer
-
+--Parses a reserved word
 rword :: String -> Parser ()
-rword w = (string w *> notFollowedBy alphaNumChar *> sc)
-
-identifier :: Parser String
-identifier = (lexeme . try) (p >>= check)
-    where
-        p       = (:) <$> letterChar <*> many alphaNumChar
-        check x = if x `elem` rws
-                    then fail $ "keyword " ++ show x ++ " cannot be an identifier"
-                  else return x
+rword w = (string w *> notFollowedBy alphaNumChar *> space_consumer)
 --END UTILITY STUFF
 
--- TODO
-decv :: Parser DecV
-decv = many (do
-    rword "var"
-    name  <- identifier
-    symbol ":="
-    aexp1 <- aexp
-    symbol ";"
-    return (name, aexp1))
+--Parses a Num
+num :: Parser Integer
+num = lexeme Lexer.integer
 
--- TODO
-decp :: Parser DecP
-decp = dbg "decp" (many (do
-    dbg "decp rword" (rword "proc")
-    name <- identifier
-    rword "is"
-    stm1 <- dbg "decp stm1" (try stmsub <|> (parens stm))
-    symbol ";"
-    return (name, stm1)))
+--Parses a Var
+var :: Parser String
+var = (lexeme . try) (p >>= check)
+    where
+        p       = (:) <$> letterChar <*> many alphaNumChar
+        check x = if elem x reserved_words
+                    then fail $ "string " ++ show x ++ " can't be a var name"
+                  else return x
 
+--Parses an Aexp
 aexp :: Parser Aexp
-aexp = (makeExprParser aTerm aOperators)
+aexp = makeExprParser aexp_terms aexp_operators
 
-bexp :: Parser Bexp
-bexp =  (makeExprParser bTerm bOperators)
+--Terms for the Aexp expression parser aexp
+aexp_terms :: Parser Aexp
+aexp_terms = parens aexp
+    <|> V      <$> var
+    <|> N      <$> num
 
-aOperators :: [[Operator Parser Aexp]]
-aOperators =
+--Operators table for Aexp expressions
+aexp_operators :: [[Operator Parser Aexp]]
+aexp_operators =
   [
     [ InfixL (Mult <$ symbol "*")]
   , [ InfixL (Add  <$ symbol "+")
     , InfixL (Sub  <$ symbol "-") ]
   ]
+--Parses a Bexp
+bexp :: Parser Bexp
+bexp = makeExprParser bexp_terms bexp_operators
 
-bOperators :: [[Operator Parser Bexp]]
-bOperators =
+--Operators table for Bexp expressions
+bexp_operators :: [[Operator Parser Bexp]]
+bexp_operators =
   [ [Prefix (Neg <$ symbol "!") ]
   , [InfixL (And <$ symbol "&")]
   ]
 
-cOperators :: [[Operator Parser Stm]]
-cOperators =
+--Operators table for Stm expressions
+stm_operators :: [[Operator Parser Stm]]
+stm_operators =
     [ [InfixR (Comp <$ symbol ";") ]
     ]
 
-aTerm :: Parser Aexp
-aTerm = parens aexp
-  <|> V      <$> identifier
-  <|> N      <$> num
-
-bTerm :: Parser Bexp
-bTerm =  parens bexp
+--Terms for the Bexp expression parser bexp
+bexp_terms :: Parser Bexp
+bexp_terms =  parens bexp
     <|> try (rword "true"  *> pure (TRUE))
     <|> try (rword "false" *> pure (FALSE))
     <|> try le
     <|> try eq
 
+--Parses an Stm
 stm :: Parser Stm
-stm =  (makeExprParser cTerm cOperators)
---stm = (try compStm <|> try stmsub)
+stm =  makeExprParser stm_terms stm_operators
 
-stmsub :: Parser Stm
-stmsub = dbg "stmsub" (blockStm <|> ifStm <|> whileStm <|> skipStm <|> callStm <|> try assStm)
+--Parser for a base Stm
+stm_base :: Parser Stm
+stm_base = dbg "stm_base" (blockStm <|> ifStm <|> whileStm <|> skipStm <|> callStm <|> assStm)
 
-cTerm :: Parser Stm
-cTerm = dbg "cTerm" (parens stm <|> blockStm <|> ifStm <|> whileStm <|> skipStm <|> callStm <|> try assStm)
+--Terms for the Stm expression parser stm
+stm_terms :: Parser Stm
+stm_terms = dbg "stm_terms" (parens stm <|> blockStm <|> ifStm <|> whileStm <|> skipStm <|> callStm <|> assStm)
 
+--Parses an Le boolean expression
 le :: Parser Bexp
 le = do
     a1 <- aexp
@@ -135,6 +126,7 @@ le = do
     a2 <- aexp
     return (Le a1 a2)
 
+--Parses an Eq boolean expression
 eq :: Parser Bexp
 eq = (do
     a1 <- aexp
@@ -142,6 +134,7 @@ eq = (do
     a2 <- aexp
     return (Eq a1 a2))
 
+--Parses an if statement
 ifStm :: Parser Stm
 ifStm = dbg "ifStm" (do
     rword "if"
@@ -152,61 +145,76 @@ ifStm = dbg "ifStm" (do
     stmt2 <- stm
     return (If cond stmt1 stmt2))
 
+--Parses a while statement
 whileStm :: Parser Stm
 whileStm = dbg "whileStm" (do
     rword  "while"
     cond   <- bexp
     rword  "do"
-    stmt1  <- try (parens stm) <|> try stm
+    stmt1  <- stm
     return (While cond stmt1))
 
+--Parses an assign statement
 assStm :: Parser Stm
 assStm = dbg "assStm" (do
-    var  <- identifier
+    var  <- var
     symbol ":="
     expr <- aexp
     return (Ass var expr))
 
+--Parses a skip statement
 skipStm :: Parser Stm
 skipStm = dbg "skipStm" (Skip <$ rword "skip")
 
--- TODO
-compStm :: Parser Stm
-compStm = dbg "compStm" (do
-    stm1  <- stmsub
-    symbol ";"
-    stm2  <- stm
-    return (Comp stm1 stm2))
-
--- TODO
+--Parses a block statement
 blockStm :: Parser Stm
 blockStm = dbg "blockStm" (do
     rword "begin"
-    decv1 <- decv
-    decp1 <- decp
+    decv1 <- try decv <|> try (parens decv)
+    decp1 <- try decp <|> try (parens decp)
     stm1 <- stm
     rword "end"
     return (Block decv1 decp1 stm1))
 
--- TODO
+--Parses a DecV
+decv :: Parser DecV
+decv = many (do
+    rword "var"
+    name  <- var
+    symbol ":="
+    aexp1 <- aexp
+    symbol ";"
+    return (name, aexp1))
+
+--Parses a DecP
+decp :: Parser DecP
+decp = dbg "decp" (many (do
+    dbg "decp rword" (rword "proc")
+    name <- var
+    rword "is"
+    stm1 <- dbg "decp stm1" (try stm_base <|> try (parens stm_base) <|> (parens stm))
+    symbol ";"
+    return (name, stm1)))
+
+--Parses a call statement
 callStm :: Parser Stm
 callStm = dbg "callStm" (do
     rword "call"
-    pname1 <- identifier
+    pname1 <- var
     return (Call pname1))
 
-testString = "/*fac_loop (p.23)*/\ny:=1;\nwhile !(x=1) do (\n y:=y*x;\n x:=x-1\n)"
-
-main = putStrLn (show (parse testString))
-
+--Parses the string and returns the resulting AST
 parse :: String -> Stm
-parse str = case (parseMaybe (between sc eof stm) str) of
+parse str = case (parseMaybe (between space_consumer eof stm) str) of
     Just result -> result
     Nothing -> Skip
 
+--Parses a given file and returns the AST representation as a string
 parseFile :: FilePath -> IO ()
 parseFile filePath = do
   file <- readFile filePath
-  putStrLn $ case parseMaybe (between sc eof stm) file of
-    Nothing   -> show Skip
+  putStrLn $ case parseMaybe (between space_consumer eof stm) file of
+    Nothing   -> show "Error while parsing"
     Just prog -> show prog
+
+main = putStrLn "Welcome to the parser implementation for the Proc language!"

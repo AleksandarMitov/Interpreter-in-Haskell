@@ -1,5 +1,21 @@
+/*
+Multi
+line
+comment
+*/
 begin
     proc a is (x := 1; y := 2);
-    proc b is (z := 3); (w := 4;
+    proc b is (z := 3);
+    proc c is x := 2;
+    proc d is
+        begin
+            var x := 2;
+            var z := 3;
+            proc g is skip;
+            proc f is z := 2;
+            b := 3;
+            h := 9
+        end;
+    (w := 4;
     skip)
 end
