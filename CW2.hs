@@ -61,13 +61,6 @@ identifier = (lexeme . try) (p >>= check)
                   else return x
 --END UTILITY STUFF
 
-stm :: Parser Stm
-stm = (makeExprParser cTerm cOperators)
---stm = (try compStm <|> try stmsub)
-
-stmsub :: Parser Stm
-stmsub = dbg "stmsub" (blockStm <|> assStm <|> ifStm <|> whileStm <|> skipStm <|> callStm)
-
 -- TODO
 decv :: Parser DecV
 decv = many (do
@@ -80,13 +73,13 @@ decv = many (do
 
 -- TODO
 decp :: Parser DecP
-decp = many (do
-    rword "proc"
+decp = dbg "decp" (many (do
+    dbg "decp rword" (rword "proc")
     name <- identifier
     rword "is"
-    stm1 <- stmsub
+    stm1 <- dbg "decp stm1" (try stmsub <|> (parens stm))
     symbol ";"
-    return (name, stm1))
+    return (name, stm1)))
 
 aexp :: Parser Aexp
 aexp = (makeExprParser aTerm aOperators)
@@ -125,8 +118,15 @@ bTerm =  parens bexp
     <|> try le
     <|> try eq
 
+stm :: Parser Stm
+stm =  (makeExprParser cTerm cOperators)
+--stm = (try compStm <|> try stmsub)
+
+stmsub :: Parser Stm
+stmsub = dbg "stmsub" (blockStm <|> ifStm <|> whileStm <|> skipStm <|> callStm <|> try assStm)
+
 cTerm :: Parser Stm
-cTerm = try (parens stm) <|> blockStm <|> assStm <|> ifStm <|> whileStm <|> skipStm <|> callStm
+cTerm = dbg "cTerm" (parens stm <|> blockStm <|> ifStm <|> whileStm <|> skipStm <|> callStm <|> try assStm)
 
 le :: Parser Bexp
 le = do
@@ -143,7 +143,7 @@ eq = (do
     return (Eq a1 a2))
 
 ifStm :: Parser Stm
-ifStm =  (do
+ifStm = dbg "ifStm" (do
     rword "if"
     cond  <- bexp
     rword "then"
@@ -153,7 +153,7 @@ ifStm =  (do
     return (If cond stmt1 stmt2))
 
 whileStm :: Parser Stm
-whileStm = (do
+whileStm = dbg "whileStm" (do
     rword  "while"
     cond   <- bexp
     rword  "do"
@@ -161,18 +161,18 @@ whileStm = (do
     return (While cond stmt1))
 
 assStm :: Parser Stm
-assStm = (do
+assStm = dbg "assStm" (do
     var  <- identifier
     symbol ":="
     expr <- aexp
     return (Ass var expr))
 
 skipStm :: Parser Stm
-skipStm = (Skip <$ rword "skip")
+skipStm = dbg "skipStm" (Skip <$ rword "skip")
 
 -- TODO
 compStm :: Parser Stm
-compStm = (do
+compStm = dbg "compStm" (do
     stm1  <- stmsub
     symbol ";"
     stm2  <- stm
@@ -180,7 +180,7 @@ compStm = (do
 
 -- TODO
 blockStm :: Parser Stm
-blockStm =  (do
+blockStm = dbg "blockStm" (do
     rword "begin"
     decv1 <- decv
     decp1 <- decp
@@ -190,7 +190,7 @@ blockStm =  (do
 
 -- TODO
 callStm :: Parser Stm
-callStm = (do
+callStm = dbg "callStm" (do
     rword "call"
     pname1 <- identifier
     return (Call pname1))
