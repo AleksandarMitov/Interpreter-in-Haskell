@@ -14,10 +14,11 @@ if((var_name <= 3434535) & !(var_name = var_name2 * 5))
 				proc func_name3 is (
 					if(3 = 4)
 						then skip
-						else
+						else (
 							skip;
 							call ppp;
 							call mlnop
+						)
 				);
 				proc func_name4 is
 					while(3 = 4) do (
@@ -32,7 +33,7 @@ if((var_name <= 3434535) & !(var_name = var_name2 * 5))
 				proc func_name4 is (
 					if(3 = 4)
 						then skip
-						else skip; skip; skip; skip
+						else (skip; skip; skip; skip)
 					;
 					while(4 <= 5) do (
 						call ala_bala;
@@ -56,7 +57,7 @@ if((var_name <= 3434535) & !(var_name = var_name2 * 5))
 call lll;
 call pos;
 skip;
-while ((((true & true)))) do (
+while ((4 = 4) & (((true & true)))) do (
 	skip
 );
 skip
