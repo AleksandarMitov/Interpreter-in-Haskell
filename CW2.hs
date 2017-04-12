@@ -121,7 +121,7 @@ stm = makeExprParser stm_terms stm_operators
 
 --Terms for the Stm expression parser stm
 stm_terms :: Parser Stm
-stm_terms = dbg "stm_terms" (parens stm <|> blockStm <|> ifStm <|> whileStm <|> skipStm <|> callStm <|> assStm)
+stm_terms = parens stm <|> blockStm <|> ifStm <|> whileStm <|> skipStm <|> callStm <|> assStm
 
 --Operators table for Stm expressions
 stm_operators :: [[Operator Parser Stm]]
@@ -132,56 +132,56 @@ stm_operators =
 
 --Parser for a base Stm
 stm_base :: Parser Stm
-stm_base = dbg "stm_base" (blockStm <|> ifStm <|> whileStm <|> skipStm <|> callStm <|> assStm)
+stm_base = blockStm <|> ifStm <|> whileStm <|> skipStm <|> callStm <|> assStm
 
 --Parses an if statement
 ifStm :: Parser Stm
-ifStm = dbg "ifStm" (do
+ifStm = do
     reserved_word "if"
     cond  <- bexp
     reserved_word "then"
     stmt1 <- try (parens stm) <|> try stm_base
     reserved_word "else"
     stmt2 <- try (parens stm) <|> try stm_base
-    return (If cond stmt1 stmt2))
+    return (If cond stmt1 stmt2)
 
 --Parses a while statement
 whileStm :: Parser Stm
-whileStm = dbg "whileStm" (do
+whileStm = do
     reserved_word  "while"
     cond   <- bexp
     reserved_word  "do"
     stmt1  <- try (parens stm) <|> try stm_base
-    return (While cond stmt1))
+    return (While cond stmt1)
 
 --Parses an assign statement
 assStm :: Parser Stm
-assStm = dbg "assStm" (do
+assStm = do
     var  <- var
     symbol ":="
     expr <- aexp
-    return (Ass var expr))
+    return (Ass var expr)
 
 --Parses a skip statement
 skipStm :: Parser Stm
-skipStm = dbg "skipStm" (Skip <$ reserved_word "skip")
+skipStm = Skip <$ reserved_word "skip"
 
 --Parses a call statement
 callStm :: Parser Stm
-callStm = dbg "callStm" (do
+callStm = do
     reserved_word "call"
     pname1 <- var
-    return (Call pname1))
+    return (Call pname1)
 
 --Parses a block statement
 blockStm :: Parser Stm
-blockStm = dbg "blockStm" (do
+blockStm = do
     reserved_word "begin"
     decv1 <- try decv <|> try (parens decv)
     decp1 <- try decp <|> try (parens decp)
     stm1 <- stm
     reserved_word "end"
-    return (Block decv1 decp1 stm1))
+    return (Block decv1 decp1 stm1)
 
 --Parses a DecV
 decv :: Parser DecV
@@ -195,13 +195,13 @@ decv = many (do
 
 --Parses a DecP
 decp :: Parser DecP
-decp = dbg "decp" (many (do
-    dbg "decp reserved_word" (reserved_word "proc")
+decp = many (do
+    reserved_word "proc"
     name <- var
     reserved_word "is"
-    stm1 <- dbg "decp stm1" (try stm_base <|> (parens stm))
+    stm1 <- try stm_base <|> (parens stm)
     symbol ";"
-    return (name, stm1)))
+    return (name, stm1))
 
 --Parses the string and returns the resulting AST
 --Returns Skip on failure
