@@ -24,8 +24,8 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
 
 --START UTILITY STUFF
 --List of the Proc language's reserved words
-reserved_words :: [String]
-reserved_words = ["if","then","else","while","do","skip","true","false","not","call", "proc", "is", "begin", "end", "var"]
+list_of_reserved_words :: [String]
+list_of_reserved_words = ["if","then","else","while","do","skip","true","false","not","call", "proc", "is", "begin", "end", "var"]
 
 --Handling whitespace and comments
 space_consumer :: Parser ()
@@ -46,8 +46,8 @@ parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
 
 --Parses a reserved word
-rword :: String -> Parser ()
-rword w = (string w *> notFollowedBy alphaNumChar *> space_consumer)
+reserved_word :: String -> Parser ()
+reserved_word w = (string w *> notFollowedBy alphaNumChar *> space_consumer)
 --END UTILITY STUFF
 
 --Parses a Num
@@ -59,7 +59,7 @@ var :: Parser String
 var = (lexeme . try) (p >>= check)
     where
         p       = (:) <$> letterChar <*> many alphaNumChar
-        check x = if elem x reserved_words
+        check x = if elem x list_of_reserved_words
                     then fail $ "string " ++ show x ++ " can't be a var name"
                   else return x
 
@@ -86,8 +86,8 @@ bexp = makeExprParser bexp_terms bexp_operators
 --Terms for the Bexp expression parser bexp
 bexp_terms :: Parser Bexp
 bexp_terms =  parens bexp
-    <|> try (rword "true"  *> pure (TRUE))
-    <|> try (rword "false" *> pure (FALSE))
+    <|> try (reserved_word "true"  *> pure (TRUE))
+    <|> try (reserved_word "false" *> pure (FALSE))
     <|> try le
     <|> try eq
 
@@ -137,20 +137,20 @@ stm_base = dbg "stm_base" (blockStm <|> ifStm <|> whileStm <|> skipStm <|> callS
 --Parses an if statement
 ifStm :: Parser Stm
 ifStm = dbg "ifStm" (do
-    rword "if"
+    reserved_word "if"
     cond  <- bexp
-    rword "then"
+    reserved_word "then"
     stmt1 <- stm
-    rword "else"
+    reserved_word "else"
     stmt2 <- stm
     return (If cond stmt1 stmt2))
 
 --Parses a while statement
 whileStm :: Parser Stm
 whileStm = dbg "whileStm" (do
-    rword  "while"
+    reserved_word  "while"
     cond   <- bexp
-    rword  "do"
+    reserved_word  "do"
     stmt1  <- stm
     return (While cond stmt1))
 
@@ -164,29 +164,29 @@ assStm = dbg "assStm" (do
 
 --Parses a skip statement
 skipStm :: Parser Stm
-skipStm = dbg "skipStm" (Skip <$ rword "skip")
+skipStm = dbg "skipStm" (Skip <$ reserved_word "skip")
 
 --Parses a call statement
 callStm :: Parser Stm
 callStm = dbg "callStm" (do
-    rword "call"
+    reserved_word "call"
     pname1 <- var
     return (Call pname1))
 
 --Parses a block statement
 blockStm :: Parser Stm
 blockStm = dbg "blockStm" (do
-    rword "begin"
+    reserved_word "begin"
     decv1 <- try decv <|> try (parens decv)
     decp1 <- try decp <|> try (parens decp)
     stm1 <- stm
-    rword "end"
+    reserved_word "end"
     return (Block decv1 decp1 stm1))
 
 --Parses a DecV
 decv :: Parser DecV
 decv = many (do
-    rword "var"
+    reserved_word "var"
     name  <- var
     symbol ":="
     aexp1 <- aexp
@@ -196,9 +196,9 @@ decv = many (do
 --Parses a DecP
 decp :: Parser DecP
 decp = dbg "decp" (many (do
-    dbg "decp rword" (rword "proc")
+    dbg "decp reserved_word" (reserved_word "proc")
     name <- var
-    rword "is"
+    reserved_word "is"
     stm1 <- dbg "decp stm1" (try stm_base <|> try (parens stm_base) <|> (parens stm))
     symbol ";"
     return (name, stm1)))
