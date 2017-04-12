@@ -1,0 +1,62 @@
+var_name := 3452;
+var_name2 := 342;
+skip;
+if((var_name <= 3434535) & !(var_name = var_name2 * 5))
+	then (
+		skip;
+		while(3 <= 5 & var_name <= 4) do (
+			call func_name;
+			call func_name2;
+			var_name3 := 45;
+			begin
+				var var_name4 := 34;
+				var var_name5 := 45;
+				proc func_name3 is (
+					if(3 = 4)
+						then skip
+						else
+							skip;
+							call ppp;
+							call mlnop
+				);
+				proc func_name4 is
+					while(3 = 4) do (
+						if (false) then skip
+						else skip
+					)
+				;
+				proc func_name34 is
+					if (true)
+						then skip
+						else skip;
+				proc func_name4 is (
+					if(3 = 4)
+						then skip
+						else skip; skip; skip; skip
+					;
+					while(4 <= 5) do (
+						call ala_bala;
+						mn  := 67;
+						call myau
+					)
+				);
+				skip;
+				r := 34;
+				skip
+			end;
+			skip;
+			begin
+				call jjj
+			end
+		)
+	)
+	else
+		skip
+;
+call lll;
+call pos;
+skip;
+while ((((true & true)))) do (
+	skip
+);
+skip

@@ -58,7 +58,7 @@ num = lexeme Lexer.integer
 var :: Parser String
 var = (lexeme . try) (p >>= check)
     where
-        p       = (:) <$> letterChar <*> many alphaNumChar
+        p       = (:) <$> letterChar <*> many (alphaNumChar <|> char '_')
         check x = if elem x list_of_reserved_words
                     then fail $ "string " ++ show x ++ " can't be a var name"
                   else return x
@@ -140,9 +140,9 @@ ifStm = dbg "ifStm" (do
     reserved_word "if"
     cond  <- bexp
     reserved_word "then"
-    stmt1 <- stm
+    stmt1 <- try (parens stm) <|> try stm_base
     reserved_word "else"
-    stmt2 <- stm
+    stmt2 <- try (parens stm) <|> try stm_base
     return (If cond stmt1 stmt2))
 
 --Parses a while statement
@@ -151,7 +151,7 @@ whileStm = dbg "whileStm" (do
     reserved_word  "while"
     cond   <- bexp
     reserved_word  "do"
-    stmt1  <- stm
+    stmt1  <- try (parens stm) <|> try stm_base
     return (While cond stmt1))
 
 --Parses an assign statement
@@ -199,7 +199,7 @@ decp = dbg "decp" (many (do
     dbg "decp reserved_word" (reserved_word "proc")
     name <- var
     reserved_word "is"
-    stm1 <- dbg "decp stm1" (try stm_base <|> try (parens stm_base) <|> (parens stm))
+    stm1 <- dbg "decp stm1" (try stm_base <|> (parens stm))
     symbol ";"
     return (name, stm1)))
 

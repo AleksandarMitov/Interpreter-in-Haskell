@@ -1,5 +1,6 @@
-begin
-    proc a is x := 1; y := 2;
-    proc b is z := 3; w := 4;
-    skip
-end
+/*fac loop (p.23)*/
+y:=1;
+while !(x=1) do (
+y:=y*x;
+x:=x-1
+)
