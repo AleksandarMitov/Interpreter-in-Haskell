@@ -13,6 +13,9 @@ type Var = String
 type Pname = String
 type DecV = [(Var,Aexp)]
 type DecP = [(Pname,Stm)]
+type T = Bool
+type Z = Integer
+type State = Var -> Z
 
 data Aexp = N Num | V Var | Mult Aexp Aexp
         | Add Aexp Aexp | Sub Aexp Aexp deriving (Show, Eq, Read)
