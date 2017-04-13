@@ -2,8 +2,8 @@ module ProcParser where
 import Control.Applicative
 import Prelude hiding (Num)
 import Control.Monad (void)
-import Data.List (intercalate)
-import Text.Megaparsec hiding (parse)
+import Data.List (intercalate, nub)
+import Text.Megaparsec hiding (parse, State)
 import Text.Megaparsec.Expr
 import Text.Megaparsec.String
 import qualified Text.Megaparsec.Lexer as Lexer
@@ -26,6 +26,46 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
         | Block DecV DecP Stm | Call Pname deriving (Show, Eq, Read)
 
 type EnvP = Pname -> Stm
+
+--s_dynamic :: Stm -> State -> State
+--s_dynamic (Skip) = state
+
+--Retuns a list of unique var names referenced in the Stm expression
+vars_in_stm :: Stm -> [Var]
+vars_in_stm (Skip) = []
+vars_in_stm (Ass var aexp) = nub (vars_in_aexp(aexp) ++ [var])
+vars_in_stm (Comp stm1 stm2) = nub (vars_in_stm(stm1) ++ vars_in_stm(stm2))
+vars_in_stm (If bexp stm1 stm2) = nub (vars_in_bexp(bexp) ++ vars_in_stm(stm1) ++ vars_in_stm(stm2))
+vars_in_stm (While bexp stm) = nub (vars_in_bexp(bexp) ++ vars_in_stm(stm))
+vars_in_stm (Block decv decp stm) = nub (vars_in_decv(decv) ++ vars_in_decp(decp) ++ vars_in_stm(stm))
+vars_in_stm (Call pname) = []
+
+--Retuns a list of unique var names referenced in the Aexp expression
+vars_in_aexp :: Aexp -> [Var]
+vars_in_aexp (N num) = []
+vars_in_aexp (V var) = [var]
+vars_in_aexp (Mult aexp1 aexp2) = nub (vars_in_aexp(aexp1) ++ vars_in_aexp(aexp2))
+vars_in_aexp (Add aexp1 aexp2) = nub (vars_in_aexp(aexp1) ++ vars_in_aexp(aexp2))
+vars_in_aexp (Sub aexp1 aexp2) = nub (vars_in_aexp(aexp1) ++ vars_in_aexp(aexp2))
+
+--Retuns a list of unique var names referenced in the Bexp expression
+vars_in_bexp :: Bexp -> [Var]
+vars_in_bexp (TRUE) = []
+vars_in_bexp (FALSE) = []
+vars_in_bexp (Neg bexp) = vars_in_bexp(bexp)
+vars_in_bexp (And bexp1 bexp2) = nub (vars_in_bexp(bexp1) ++ vars_in_bexp(bexp2))
+vars_in_bexp (Le aexp1 aexp2) = nub (vars_in_aexp(aexp1) ++ vars_in_aexp(aexp2))
+vars_in_bexp (Eq aexp1 aexp2) = nub (vars_in_aexp(aexp1) ++ vars_in_aexp(aexp2))
+
+--Retuns a list of unique var names referenced in the DecV expression
+vars_in_decv :: DecV -> [Var]
+vars_in_decv ([]) = []
+vars_in_decv ((x, y):rest) = nub ([x] ++ vars_in_aexp(y) ++ vars_in_decv(rest))
+
+--Retuns a list of unique var names referenced in the DecP expression
+vars_in_decp :: DecP -> [Var]
+vars_in_decp ([]) = []
+vars_in_decp ((x,y):rest) = nub (vars_in_stm(y) ++ vars_in_decp(rest))
 
 --START UTILITY STUFF
 --List of the Proc language's reserved words
@@ -224,3 +264,10 @@ parseFile filePath = do
     Just prog -> show prog
 
 main = putStrLn "Welcome to the parser implementation for the Proc language!"
+
+testVars :: FilePath -> IO ()
+testVars filePath = do
+  file <- readFile filePath
+  putStrLn $ case parseMaybe (between space_consumer eof stm) file of
+    Nothing   -> show "Error while parsing"
+    Just prog -> show (intercalate ", " (vars_in_stm(prog)))
