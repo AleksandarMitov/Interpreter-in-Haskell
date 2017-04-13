@@ -25,6 +25,8 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
         | If Bexp Stm Stm | While Bexp Stm
         | Block DecV DecP Stm | Call Pname deriving (Show, Eq, Read)
 
+type EnvP = Pname -> Stm
+
 --START UTILITY STUFF
 --List of the Proc language's reserved words
 list_of_reserved_words :: [String]
