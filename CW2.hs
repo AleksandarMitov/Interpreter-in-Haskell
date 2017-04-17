@@ -40,6 +40,16 @@ vars_in_stm (While bexp stm) = nub (vars_in_bexp(bexp) ++ vars_in_stm(stm))
 vars_in_stm (Block decv decp stm) = nub (vars_in_decv(decv) ++ vars_in_decp(decp) ++ vars_in_stm(stm))
 vars_in_stm (Call pname) = []
 
+--Retuns a list of unique proc names referenced in the Stm expression
+procs_in_stm :: Stm -> [Pname]
+procs_in_stm (Skip) = []
+procs_in_stm (Ass var aexp) = []
+procs_in_stm (Comp stm1 stm2) = nub (procs_in_stm(stm1) ++ procs_in_stm(stm2))
+procs_in_stm (If bexp stm1 stm2) = nub (procs_in_stm(stm1) ++ procs_in_stm(stm2))
+procs_in_stm (While bexp stm) = procs_in_stm(stm)
+procs_in_stm (Block decv decp stm) = nub (procs_in_decp(decp) ++ procs_in_stm(stm))
+procs_in_stm (Call pname) = [pname]
+
 --Retuns a list of unique var names referenced in the Aexp expression
 vars_in_aexp :: Aexp -> [Var]
 vars_in_aexp (N num) = []
@@ -66,6 +76,11 @@ vars_in_decv ((x, y):rest) = nub ([x] ++ vars_in_aexp(y) ++ vars_in_decv(rest))
 vars_in_decp :: DecP -> [Var]
 vars_in_decp ([]) = []
 vars_in_decp ((x,y):rest) = nub (vars_in_stm(y) ++ vars_in_decp(rest))
+
+--Retuns a list of unique proc names referenced in the DecP expression
+procs_in_decp :: DecP -> [Pname]
+procs_in_decp ([]) = []
+procs_in_decp ((x,y):rest) = nub ([x] ++ procs_in_stm(y) ++ procs_in_decp(rest))
 
 --START UTILITY STUFF
 --List of the Proc language's reserved words
@@ -271,3 +286,10 @@ testVars filePath = do
   putStrLn $ case parseMaybe (between space_consumer eof stm) file of
     Nothing   -> show "Error while parsing"
     Just prog -> show (intercalate ", " (vars_in_stm(prog)))
+
+testProcs :: FilePath -> IO ()
+testProcs filePath = do
+  file <- readFile filePath
+  putStrLn $ case parseMaybe (between space_consumer eof stm) file of
+    Nothing   -> show "Error while parsing"
+    Just prog -> show (intercalate ", " (procs_in_stm(prog)))
