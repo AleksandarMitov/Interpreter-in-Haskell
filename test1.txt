@@ -1,9 +1,15 @@
-y := 1 ;
-y := y+1 ;
-z := 167 ;
-while ((!(x=1))) do (
-y:=y*x;
+//fac call (p.55)
+begin
+proc fac is
+begin
+var z:=x;
+if x=1 then
+skip
+else (
 x:=x-1;
-x:=2;
-o:= 346567+(5+6)+7
-)
+call fac;
+y:=z*y )
+end;
+y:=1;
+call fac
+end

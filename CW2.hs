@@ -364,6 +364,14 @@ parseFile filePath = do
 
 main = putStrLn "Welcome to the parser implementation for the Proc language!"
 
+testDyn :: FilePath -> IO ()
+testDyn filePath = do
+  file <- readFile filePath
+  putStrLn $ case parseMaybe (between space_consumer eof stm) file of
+    Nothing   -> show "Error while parsing"
+    Just prog -> show (stm_val vars procs prog)
+                    where vars = zip (vars_in_stm prog) (repeat 0)
+                          procs = zip (procs_in_stm prog) (repeat Skip)
 
 testVars :: FilePath -> IO ()
 testVars filePath = do
