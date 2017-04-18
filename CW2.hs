@@ -38,6 +38,13 @@ dyn_update_proc procs proc_name proc_body = case elemIndex (proc_name) (fst (unz
                                             Just index -> take index procs ++ [(proc_name, proc_body)] ++ drop (index + 1) procs
                                             Nothing -> procs
 
+--Returns a DecC with the updated var body
+--TODO TEST IT
+dyn_update_var :: DecV -> Var -> Aexp -> DecV
+dyn_update_var vars var_name var_exp = case elemIndex (var_name) (fst (unzip vars)) of
+                                            Just index -> take index vars ++ [(var_name, var_exp)] ++ drop (index + 1) vars
+                                            Nothing -> vars
+
 --Retuns a list of unique var names referenced in the Stm expression
 vars_in_stm :: Stm -> [Var]
 vars_in_stm (Skip) = []
