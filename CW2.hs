@@ -28,7 +28,17 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
 type EnvP = Pname -> Stm
 
 --s_dynamic :: Stm -> State -> State
---s_dynamic (Skip) = state
+--TODO TEST IT
+s_dynamic expr state = stm_val vars procs expr
+                        where var_names = vars_in_stm expr
+                              proc_names = procs_in_stm expr
+                              vars = extract_state state var_names
+                              procs = zip proc_names (repeat Skip)
+
+--Returns a list of var names paired with their values extracted from the state function
+extract_state :: State -> [Var] -> [(Var, Z)]
+extract_state state [] = []
+extract_state state (var:vars) = (var, (state var)) : (extract_state state vars)
 
 --Evaluates an Stm expression
 --TODO TEST IT
