@@ -38,12 +38,24 @@ dyn_update_proc procs proc_name proc_body = case elemIndex (proc_name) (fst (unz
                                             Just index -> take index procs ++ [(proc_name, proc_body)] ++ drop (index + 1) procs
                                             Nothing -> procs
 
---Returns a DecC with the updated var body
+--Returns a DecV with the updated var body
 --TODO TEST IT
 dyn_update_var :: DecV -> Var -> Aexp -> DecV
 dyn_update_var vars var_name var_exp = case elemIndex (var_name) (fst (unzip vars)) of
                                             Just index -> take index vars ++ [(var_name, var_exp)] ++ drop (index + 1) vars
                                             Nothing -> vars
+
+--Returns the Stm associated with the proc
+dyn_get_proc :: DecP -> EnvP
+dyn_get_proc procs proc_name = case elemIndex (proc_name) (fst (unzip procs)) of
+                                Just index -> snd (procs !! index)
+                                Nothing -> Skip
+
+--Returns the Aexp associated with the var
+dyn_get_var :: DecV -> EnvV
+dyn_get_var vars var_name = case elemIndex (var_name) (fst (unzip vars)) of
+                                Just index -> snd (vars !! index)
+                                Nothing -> N 0
 
 --Retuns a list of unique var names referenced in the Stm expression
 vars_in_stm :: Stm -> [Var]
@@ -97,7 +109,7 @@ procs_in_decp :: DecP -> [Pname]
 procs_in_decp ([]) = []
 procs_in_decp ((x,y):rest) = nub ([x] ++ procs_in_stm(y) ++ procs_in_decp(rest))
 
---START UTILITY STUFF
+--START PARSER RELATED API
 --List of the Proc language's reserved words
 list_of_reserved_words :: [String]
 list_of_reserved_words = ["if","then","else","while","do","skip","true","false","not","call", "proc", "is", "begin", "end", "var"]
