@@ -2,7 +2,7 @@ module ProcParser where
 import Control.Applicative
 import Prelude hiding (Num)
 import Control.Monad (void)
-import Data.List (intercalate, nub)
+import Data.List (intercalate, nub, elemIndex)
 import Text.Megaparsec hiding (parse, State)
 import Text.Megaparsec.Expr
 import Text.Megaparsec.String
@@ -26,9 +26,17 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
         | Block DecV DecP Stm | Call Pname deriving (Show, Eq, Read)
 
 type EnvP = Pname -> Stm
+type EnvV = Var -> Aexp
 
 --s_dynamic :: Stm -> State -> State
 --s_dynamic (Skip) = state
+
+--Returns a DecP with the updated procedure body
+--TODO TEST IT
+dyn_update_proc :: DecP -> Pname -> Stm -> DecP
+dyn_update_proc procs proc_name proc_body = case elemIndex (proc_name) (fst (unzip procs)) of
+                                            Just index -> take index procs ++ [(proc_name, proc_body)] ++ drop (index + 1) procs
+                                            Nothing -> procs
 
 --Retuns a list of unique var names referenced in the Stm expression
 vars_in_stm :: Stm -> [Var]
