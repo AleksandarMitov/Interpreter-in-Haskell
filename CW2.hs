@@ -31,17 +31,37 @@ type EnvP = Pname -> Stm
 --s_dynamic (Skip) = state
 
 --Evaluates an Stm expression
-stm_val :: [(Var, Z)] -> Stm -> [(Var, Z)]
-stm_val vars (Skip) = vars
-stm_val vars (Ass var expr) = dyn_update_var vars var (aexp_val (dyn_get_var vars) expr)
-stm_val vars (Comp stm1 stm2) = stm_val (stm_val vars stm1) stm2
-stm_val vars (If bexpr stm1 stm2) = case (bexp_val (dyn_get_var vars) bexpr) of
-                                    True -> stm_val vars stm1
-                                    False -> stm_val vars stm2
-stm_val vars (While bexpr stm) = case (bexp_val (dyn_get_var vars) bexpr) of
-                                    True -> stm_val (stm_val vars stm) (While bexpr stm)
-                                    False -> vars
-stm_val vars (Block decv decp stm) = []
+--TODO TEST IT
+stm_val :: [(Var, Z)] -> [(Pname, Stm)] -> Stm -> ([(Var, Z)],  [(Pname, Stm)])
+stm_val vars procs (Skip) = (vars, procs)
+stm_val vars procs (Ass var expr) = (dyn_update_var vars var (aexp_val (dyn_get_var vars) expr), procs)
+stm_val vars procs (Comp stm1 stm2) = stm_val v1 p1 stm2
+                                    where s1 = stm_val vars procs stm1
+                                          v1 = fst s1
+                                          p1 = snd s1
+stm_val vars procs (If bexpr stm1 stm2) = case (bexp_val (dyn_get_var vars) bexpr) of
+                                    True -> stm_val vars procs stm1
+                                    False -> stm_val vars procs stm2
+stm_val vars procs (While bexpr stm) = case (bexp_val (dyn_get_var vars) bexpr) of
+                                    True -> stm_val v1 p1 (While bexpr stm)
+                                    False -> (vars, procs)
+                                    where s1 = stm_val vars procs stm
+                                          v1 = fst s1
+                                          p1 = snd s1
+stm_val vars procs (Block decv decp stm) = stm_val v1 p1 stm
+                                            where v1 = decv_val vars decv
+                                                  p1 = decp_val procs decp
+stm_val vars procs (Call pname) = stm_val vars procs (dyn_get_proc procs pname)
+
+--Evaluates a DecV expression
+decv_val :: [(Var, Z)] -> DecV -> [(Var, Z)]
+decv_val vars [] = vars
+decv_val vars ((var_name, var_exp):rest) = decv_val (dyn_update_var vars var_name (aexp_val (dyn_get_var vars) var_exp)) rest
+
+--Evaluates a DecP expression
+decp_val :: [(Pname, Stm)] -> DecP -> [(Pname, Stm)]
+decp_val procs [] = procs
+decp_val procs ((proc_name, proc_expr):rest) = decp_val (dyn_update_proc procs proc_name proc_expr) rest
 
 --Evaluates an Aexp expression
 aexp_val :: State -> Aexp -> Z
@@ -61,7 +81,7 @@ bexp_val state (Le expr1 expr2) = (aexp_val state expr1) <= (aexp_val state expr
 bexp_val state (Eq expr1 expr2) = (aexp_val state expr1) == (aexp_val state expr2)
 
 --Returns a DecP with the updated procedure body
-dyn_update_proc :: DecP -> Pname -> Stm -> DecP
+dyn_update_proc :: [(Pname, Stm)] -> Pname -> Stm -> [(Pname, Stm)]
 dyn_update_proc procs proc_name proc_body = case elemIndex (proc_name) (fst (unzip procs)) of
                                             Just index -> take index procs ++ [(proc_name, proc_body)] ++ drop (index + 1) procs
                                             Nothing -> procs
@@ -73,7 +93,7 @@ dyn_update_var vars var_name var_val = case elemIndex (var_name) (fst (unzip var
                                             Nothing -> vars
 
 --Returns the Stm associated with the proc
-dyn_get_proc :: DecP -> EnvP
+dyn_get_proc :: [(Pname, Stm)] -> EnvP
 dyn_get_proc procs proc_name = case elemIndex (proc_name) (fst (unzip procs)) of
                                 Just index -> snd (procs !! index)
                                 Nothing -> Skip
