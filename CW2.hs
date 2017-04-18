@@ -31,6 +31,9 @@ type EnvV = Var -> Aexp
 --s_dynamic :: Stm -> State -> State
 --s_dynamic (Skip) = state
 
+--Evaluates an Aexp expression
+--aexp_val :: EnvV -> Aexp ->
+
 --Returns a DecP with the updated procedure body
 dyn_update_proc :: DecP -> Pname -> Stm -> DecP
 dyn_update_proc procs proc_name proc_body = case elemIndex (proc_name) (fst (unzip procs)) of
@@ -38,9 +41,9 @@ dyn_update_proc procs proc_name proc_body = case elemIndex (proc_name) (fst (unz
                                             Nothing -> procs
 
 --Returns a DecV with the updated var body
-dyn_update_var :: DecV -> Var -> Aexp -> DecV
-dyn_update_var vars var_name var_exp = case elemIndex (var_name) (fst (unzip vars)) of
-                                            Just index -> take index vars ++ [(var_name, var_exp)] ++ drop (index + 1) vars
+dyn_update_var :: [(Var, Z)] -> Var -> Z -> [(Var, Z)]
+dyn_update_var vars var_name var_val = case elemIndex (var_name) (fst (unzip vars)) of
+                                            Just index -> take index vars ++ [(var_name, var_val)] ++ drop (index + 1) vars
                                             Nothing -> vars
 
 --Returns the Stm associated with the proc
@@ -49,11 +52,11 @@ dyn_get_proc procs proc_name = case elemIndex (proc_name) (fst (unzip procs)) of
                                 Just index -> snd (procs !! index)
                                 Nothing -> Skip
 
---Returns the Aexp associated with the var
-dyn_get_var :: DecV -> EnvV
+--Returns the Z val associated with the var
+dyn_get_var :: [(Var, Z)] -> State
 dyn_get_var vars var_name = case elemIndex (var_name) (fst (unzip vars)) of
                                 Just index -> snd (vars !! index)
-                                Nothing -> N 0
+                                Nothing -> 0
 
 --Retuns a list of unique var names referenced in the Stm expression
 vars_in_stm :: Stm -> [Var]
