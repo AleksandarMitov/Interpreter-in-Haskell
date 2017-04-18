@@ -27,9 +27,9 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
 
 type EnvP = Pname -> Stm
 
---s_dynamic :: Stm -> State -> State
 --TODO TEST IT
-s_dynamic expr state = stm_val vars procs expr
+s_dynamic :: Stm -> State -> State
+s_dynamic expr state = dyn_get_var (fst (stm_val vars procs expr))
                         where var_names = vars_in_stm expr
                               proc_names = procs_in_stm expr
                               vars = extract_state state var_names
@@ -363,6 +363,7 @@ parseFile filePath = do
     Just prog -> show prog
 
 main = putStrLn "Welcome to the parser implementation for the Proc language!"
+
 
 testVars :: FilePath -> IO ()
 testVars filePath = do
