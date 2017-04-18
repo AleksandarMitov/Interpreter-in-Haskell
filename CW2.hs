@@ -32,14 +32,12 @@ type EnvV = Var -> Aexp
 --s_dynamic (Skip) = state
 
 --Returns a DecP with the updated procedure body
---TODO TEST IT
 dyn_update_proc :: DecP -> Pname -> Stm -> DecP
 dyn_update_proc procs proc_name proc_body = case elemIndex (proc_name) (fst (unzip procs)) of
                                             Just index -> take index procs ++ [(proc_name, proc_body)] ++ drop (index + 1) procs
                                             Nothing -> procs
 
 --Returns a DecV with the updated var body
---TODO TEST IT
 dyn_update_var :: DecV -> Var -> Aexp -> DecV
 dyn_update_var vars var_name var_exp = case elemIndex (var_name) (fst (unzip vars)) of
                                             Just index -> take index vars ++ [(var_name, var_exp)] ++ drop (index + 1) vars
