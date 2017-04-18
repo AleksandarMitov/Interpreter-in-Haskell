@@ -32,7 +32,12 @@ type EnvV = Var -> Aexp
 --s_dynamic (Skip) = state
 
 --Evaluates an Aexp expression
---aexp_val :: EnvV -> Aexp ->
+aexp_val :: State -> Aexp -> Z
+aexp_val var_vals (N num) = num
+aexp_val var_vals (V var) = var_vals var
+aexp_val var_vals (Mult aexp1 aexp2) = (aexp_val var_vals aexp1) * (aexp_val var_vals aexp2)
+aexp_val var_vals (Add aexp1 aexp2) = (aexp_val var_vals aexp1) + (aexp_val var_vals aexp2)
+aexp_val var_vals (Sub aexp1 aexp2) = (aexp_val var_vals aexp1) - (aexp_val var_vals aexp2)
 
 --Returns a DecP with the updated procedure body
 dyn_update_proc :: DecP -> Pname -> Stm -> DecP
