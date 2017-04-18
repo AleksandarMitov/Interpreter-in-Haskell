@@ -26,18 +26,39 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
         | Block DecV DecP Stm | Call Pname deriving (Show, Eq, Read)
 
 type EnvP = Pname -> Stm
-type EnvV = Var -> Aexp
 
 --s_dynamic :: Stm -> State -> State
 --s_dynamic (Skip) = state
 
+--Evaluates an Stm expression
+stm_val :: [(Var, Z)] -> Stm -> [(Var, Z)]
+stm_val vars (Skip) = vars
+stm_val vars (Ass var expr) = dyn_update_var vars var (aexp_val (dyn_get_var vars) expr)
+stm_val vars (Comp stm1 stm2) = stm_val (stm_val vars stm1) stm2
+stm_val vars (If bexpr stm1 stm2) = case (bexp_val (dyn_get_var vars) bexpr) of
+                                    True -> stm_val vars stm1
+                                    False -> stm_val vars stm2
+stm_val vars (While bexpr stm) = case (bexp_val (dyn_get_var vars) bexpr) of
+                                    True -> stm_val (stm_val vars stm) (While bexpr stm)
+                                    False -> vars
+stm_val vars (Block decv decp stm) = []
+
 --Evaluates an Aexp expression
 aexp_val :: State -> Aexp -> Z
-aexp_val var_vals (N num) = num
-aexp_val var_vals (V var) = var_vals var
-aexp_val var_vals (Mult aexp1 aexp2) = (aexp_val var_vals aexp1) * (aexp_val var_vals aexp2)
-aexp_val var_vals (Add aexp1 aexp2) = (aexp_val var_vals aexp1) + (aexp_val var_vals aexp2)
-aexp_val var_vals (Sub aexp1 aexp2) = (aexp_val var_vals aexp1) - (aexp_val var_vals aexp2)
+aexp_val state (N num) = num
+aexp_val state (V var) = state var
+aexp_val state (Mult aexp1 aexp2) = (aexp_val state aexp1) * (aexp_val state aexp2)
+aexp_val state (Add aexp1 aexp2) = (aexp_val state aexp1) + (aexp_val state aexp2)
+aexp_val state (Sub aexp1 aexp2) = (aexp_val state aexp1) - (aexp_val state aexp2)
+
+--Evaluates a Bexp expression
+bexp_val :: State -> Bexp -> T
+bexp_val state (TRUE) = True
+bexp_val state (FALSE) = False
+bexp_val state (Neg expr) = not (bexp_val state expr)
+bexp_val state (And expr1 expr2) = (bexp_val state expr1) && (bexp_val state expr2)
+bexp_val state (Le expr1 expr2) = (aexp_val state expr1) <= (aexp_val state expr2)
+bexp_val state (Eq expr1 expr2) = (aexp_val state expr1) == (aexp_val state expr2)
 
 --Returns a DecP with the updated procedure body
 dyn_update_proc :: DecP -> Pname -> Stm -> DecP
@@ -45,7 +66,7 @@ dyn_update_proc procs proc_name proc_body = case elemIndex (proc_name) (fst (unz
                                             Just index -> take index procs ++ [(proc_name, proc_body)] ++ drop (index + 1) procs
                                             Nothing -> procs
 
---Returns a DecV with the updated var body
+--Returns a list of tuples with the updated var body
 dyn_update_var :: [(Var, Z)] -> Var -> Z -> [(Var, Z)]
 dyn_update_var vars var_name var_val = case elemIndex (var_name) (fst (unzip vars)) of
                                             Just index -> take index vars ++ [(var_name, var_val)] ++ drop (index + 1) vars
