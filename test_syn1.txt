@@ -1,14 +1,15 @@
-x := 4;
+x := 60;
 begin
   proc fac is (
     begin
       var z:=x;
-      if (x = 3) then
+      if (x = 1) then
         skip
       else (
         x:=x-1;
-        call fac;
-        y:=y*z
+        y:=y*z;
+	call fac
+        //y:=y*z
 	)
     end
   );
