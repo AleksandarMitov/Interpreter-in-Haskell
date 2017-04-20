@@ -26,7 +26,10 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
         | Block DecV DecP Stm | Call Pname deriving (Show, Eq, Read)
 
 type EnvP = Pname -> Stm
-newtype EnvP2 = EnvP2 (Pname -> (Stm -> EnvP2))
+
+--data type with a constructor taking a proc name, its associated stm body
+--and a list of available procs to be called from the current proc
+data StaticProc = StaticProc Pname Stm [StaticProc]
 
 --TODO TEST IT
 s_dynamic :: Stm -> State -> State
@@ -66,32 +69,24 @@ stm_val vars procs (Call pname) = stm_val vars procs (dyn_get_proc procs pname)
 
 --Evaluates an Stm expression with dynamic vars and static procs
 --TODO TEST IT
-stm_val_mixed :: [(Var, Z)] -> [(Pname, Stm)] -> Stm -> [(Var, Z)]
-stm_val_mixed vars procs (Skip) = vars
-stm_val_mixed vars procs (Ass var expr) = dyn_update_var vars var (aexp_val (dyn_get_var vars) expr)
-stm_val_mixed vars procs (Comp stm1 stm2) = stm_val_mixed updated_vars procs stm2
-                                    where updated_vars = stm_val_mixed vars procs stm1
-stm_val_mixed vars procs (If bexpr stm1 stm2) = case (bexp_val (dyn_get_var vars) bexpr) of
-                                    True -> stm_val_mixed vars procs stm1
-                                    False -> stm_val_mixed vars procs stm2
-stm_val_mixed vars procs (While bexpr stm) = case (bexp_val (dyn_get_var vars) bexpr) of
-                                    True -> stm_val_mixed updated_vars procs (While bexpr stm)
+stm_val_mixed :: [(Var, Z)] -> StaticProc -> [(Var, Z)]
+stm_val_mixed vars (StaticProc pname Skip procs) = vars
+stm_val_mixed vars (StaticProc pname (Ass var expr) procs) = dyn_update_var vars var (aexp_val (dyn_get_var vars) expr)
+stm_val_mixed vars (StaticProc pname (Comp stm1 stm2) procs) = stm_val_mixed updated_vars (StaticProc pname stm2 procs)
+                                    where updated_vars = stm_val_mixed vars (StaticProc pname stm1 procs)
+stm_val_mixed vars (StaticProc pname (If bexpr stm1 stm2) procs) = case (bexp_val (dyn_get_var vars) bexpr) of
+                                    True -> stm_val_mixed vars (StaticProc pname stm1 procs)
+                                    False -> stm_val_mixed vars (StaticProc pname stm2 procs)
+stm_val_mixed vars (StaticProc pname (While bexpr stm) procs) = case (bexp_val (dyn_get_var vars) bexpr) of
+                                    True -> stm_val_mixed updated_vars (StaticProc pname (While bexpr stm) procs)
                                     False -> vars
-                                    where updated_vars = stm_val_mixed vars procs stm
-stm_val_mixed vars procs (Block decv decp stm) = stm_val_mixed v1 p1 stm
+                                    where updated_vars = stm_val_mixed vars (StaticProc pname stm procs)
+stm_val_mixed vars (StaticProc pname (Block decv decp stm) procs) = stm_val_mixed v1 (StaticProc pname stm p1)
                                             where v1 = decv_val vars decv
-                                                  p1 = decp_val procs decp
-stm_val_mixed vars procs (Call pname) = stm_val_mixed vars procs (dyn_get_proc procs pname)
-
---Evaluates a DecV expression
-decv_val :: [(Var, Z)] -> DecV -> [(Var, Z)]
-decv_val vars [] = vars
-decv_val vars ((var_name, var_exp):rest) = decv_val (dyn_update_var vars var_name (aexp_val (dyn_get_var vars) var_exp)) rest
-
---Evaluates a DecP expression
-decp_val :: [(Pname, Stm)] -> DecP -> [(Pname, Stm)]
-decp_val procs [] = procs
-decp_val procs ((proc_name, proc_expr):rest) = decp_val (dyn_update_proc procs proc_name proc_expr) rest
+                                                  p1 = static_decp_val procs decp
+--stm_val_mixed vars (StaticProc pname (Call call_proc) procs) = if pname == call_proc
+--    then stm_val_mixed vars (StaticProc call_proc stm p1)
+--    else expression
 
 --Evaluates an Aexp expression
 aexp_val :: State -> Aexp -> Z
@@ -110,11 +105,33 @@ bexp_val state (And expr1 expr2) = (bexp_val state expr1) && (bexp_val state exp
 bexp_val state (Le expr1 expr2) = (aexp_val state expr1) <= (aexp_val state expr2)
 bexp_val state (Eq expr1 expr2) = (aexp_val state expr1) == (aexp_val state expr2)
 
+--Evaluates a DecV expression
+decv_val :: [(Var, Z)] -> DecV -> [(Var, Z)]
+decv_val vars [] = vars
+decv_val vars ((var_name, var_exp):rest) = decv_val (dyn_update_var vars var_name (aexp_val (dyn_get_var vars) var_exp)) rest
+
+--Evaluates a DecP expression
+decp_val :: [(Pname, Stm)] -> DecP -> [(Pname, Stm)]
+decp_val procs [] = procs
+decp_val procs ((proc_name, proc_expr):rest) = decp_val (dyn_update_proc procs proc_name proc_expr) rest
+
+--Evaluates a DecP expression
+static_decp_val :: [StaticProc] -> DecP -> [StaticProc]
+static_decp_val procs [] = procs
+static_decp_val procs ((proc_name, proc_expr):rest) = static_decp_val (static_update_proc procs proc_name proc_expr procs) rest
+
 --Returns a DecP with the updated procedure body
 dyn_update_proc :: [(Pname, Stm)] -> Pname -> Stm -> [(Pname, Stm)]
 dyn_update_proc procs proc_name proc_body = case elemIndex (proc_name) (fst (unzip procs)) of
                                             Just index -> take index procs ++ [(proc_name, proc_body)] ++ drop (index + 1) procs
                                             Nothing -> procs
+
+--Returns a DecP with the updated procedure body
+static_update_proc :: [StaticProc] -> Pname -> Stm -> [StaticProc] -> [StaticProc]
+static_update_proc [] proc_name proc_body proc_procs = []
+static_update_proc ((StaticProc pname pbody pprocs):rest) proc_name proc_body proc_procs = if proc_name == pname
+    then (StaticProc pname proc_body proc_procs) : rest
+    else (StaticProc pname pbody pprocs) : (static_update_proc rest proc_name proc_body proc_procs)
 
 --Returns a list of tuples with the updated var body
 dyn_update_var :: [(Var, Z)] -> Var -> Z -> [(Var, Z)]
@@ -392,6 +409,17 @@ testDyn filePath = do
     Just prog -> show (stm_val vars procs prog)
                     where vars = zip (vars_in_stm prog) (repeat 0)
                           procs = zip (procs_in_stm prog) (repeat Skip)
+
+{-
+testMixed :: FilePath -> IO ()
+testMixed filePath = do
+    file <- readFile filePath
+    putStrLn $ case parseMaybe (between space_consumer eof stm) file of
+        Nothing   -> show "Error while parsing"
+        Just prog -> show (stm_val_mixed vars procs prog)
+                     where vars = zip (vars_in_stm prog) (repeat 0)
+                           procs = zip (procs_in_stm prog) (repeat Skip)
+-}
 
 testVars :: FilePath -> IO ()
 testVars filePath = do
