@@ -26,6 +26,7 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
         | Block DecV DecP Stm | Call Pname deriving (Show, Eq, Read)
 
 type EnvP = Pname -> Stm
+newtype EnvP2 = EnvP2 (Pname -> (Stm -> EnvP2))
 
 --TODO TEST IT
 s_dynamic :: Stm -> State -> State
@@ -40,7 +41,7 @@ extract_state :: State -> [Var] -> [(Var, Z)]
 extract_state state [] = []
 extract_state state (var:vars) = (var, (state var)) : (extract_state state vars)
 
---Evaluates an Stm expression
+--Evaluates an Stm expression with dynamic vars and procs
 --TODO TEST IT
 stm_val :: [(Var, Z)] -> [(Pname, Stm)] -> Stm -> ([(Var, Z)],  [(Pname, Stm)])
 stm_val vars procs (Skip) = (vars, procs)
@@ -62,6 +63,29 @@ stm_val vars procs (Block decv decp stm) = stm_val v1 p1 stm
                                             where v1 = decv_val vars decv
                                                   p1 = decp_val procs decp
 stm_val vars procs (Call pname) = stm_val vars procs (dyn_get_proc procs pname)
+
+--Evaluates an Stm expression with dynamic vars and static procs
+--TODO TEST IT
+stm_val_mixed :: [(Var, Z)] -> [(Pname, Stm)] -> Stm -> [(Var, Z)]
+stm_val_mixed vars procs (Skip) = vars
+stm_val_mixed vars procs (Ass var expr) = dyn_update_var vars var (aexp_val (dyn_get_var vars) expr)
+stm_val_mixed vars procs (Comp stm1 stm2) = stm_val_mixed updated_vars procs stm2
+                                    where updated_vars = stm_val_mixed vars procs stm1
+{-|
+stm_val_mixed vars procs (If bexpr stm1 stm2) = case (bexp_val (dyn_get_var vars) bexpr) of
+                                    True -> stm_val vars procs stm1
+                                    False -> stm_val vars procs stm2
+stm_val_mixed vars procs (While bexpr stm) = case (bexp_val (dyn_get_var vars) bexpr) of
+                                    True -> stm_val v1 p1 (While bexpr stm)
+                                    False -> (vars, procs)
+                                    where s1 = stm_val vars procs stm
+                                          v1 = fst s1
+                                          p1 = snd s1
+stm_val_mixed vars procs (Block decv decp stm) = stm_val v1 p1 stm
+                                            where v1 = decv_val vars decv
+                                                  p1 = decp_val procs decp
+stm_val_mixed vars procs (Call pname) = stm_val vars procs (dyn_get_proc procs pname)
+-}
 
 --Evaluates a DecV expression
 decv_val :: [(Var, Z)] -> DecV -> [(Var, Z)]
