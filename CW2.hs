@@ -84,9 +84,13 @@ stm_val_mixed vars (StaticProc pname (While bexpr stm) procs) = case (bexp_val (
 stm_val_mixed vars (StaticProc pname (Block decv decp stm) procs) = stm_val_mixed v1 (StaticProc pname stm p1)
                                             where v1 = decv_val vars decv
                                                   p1 = static_decp_val procs decp
---stm_val_mixed vars (StaticProc pname (Call call_proc) procs) = if pname == call_proc
---    then stm_val_mixed vars (StaticProc call_proc stm p1)
---    else expression
+stm_val_mixed vars (StaticProc pname (Call call_proc) procs) = if pname == call_proc
+    then stm_val_mixed vars (StaticProc call_proc stm_proc procs)
+    else stm_val_mixed vars (StaticProc call_proc stm_proc subproc_procs)
+    where stm_proc = case (static_get_proc procs call_proc) of
+            StaticProc pn sb ps -> sb
+          subproc_procs = case (static_get_proc procs call_proc) of
+            StaticProc pn sb ps -> ps
 
 --Evaluates an Aexp expression
 aexp_val :: State -> Aexp -> Z
@@ -144,6 +148,13 @@ dyn_get_proc :: [(Pname, Stm)] -> EnvP
 dyn_get_proc procs proc_name = case elemIndex (proc_name) (fst (unzip procs)) of
                                 Just index -> snd (procs !! index)
                                 Nothing -> Skip
+
+--Returns the StaticProc associated with the proc name
+static_get_proc :: [StaticProc] -> Pname -> StaticProc
+static_get_proc [] proc_name = StaticProc proc_name Skip []
+static_get_proc ((StaticProc pname pbody pprocs):rest) proc_name = if proc_name == pname
+    then StaticProc pname pbody pprocs
+    else static_get_proc rest proc_name
 
 --Returns the Z val associated with the var
 dyn_get_var :: [(Var, Z)] -> State
