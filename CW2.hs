@@ -120,9 +120,11 @@ decp_val procs [] = procs
 decp_val procs ((proc_name, proc_expr):rest) = decp_val (dyn_update_proc procs proc_name proc_expr) rest
 
 --Evaluates a DecP expression
+--injecting the current proc body twice via the injected_current_proc variable in order to support recursion
 static_decp_val :: [StaticProc] -> DecP -> [StaticProc]
 static_decp_val procs [] = procs
-static_decp_val procs ((proc_name, proc_expr):rest) = static_decp_val (static_update_proc procs proc_name proc_expr procs) rest
+static_decp_val procs ((proc_name, proc_expr):rest) = static_decp_val (static_update_proc procs proc_name proc_expr injected_current_proc) rest
+                                where injected_current_proc = static_update_proc procs proc_name proc_expr procs
 
 --Returns a DecP with the updated procedure body
 dyn_update_proc :: [(Pname, Stm)] -> Pname -> Stm -> [(Pname, Stm)]
