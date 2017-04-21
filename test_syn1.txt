@@ -8,6 +8,7 @@ begin
       else (
         x:=x-1;
         y:=y*z;
+	ooo := 19;
 	call fac
         //y:=y*z
 	)

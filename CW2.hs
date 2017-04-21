@@ -421,16 +421,14 @@ testDyn filePath = do
                     where vars = zip (vars_in_stm prog) (repeat 0)
                           procs = zip (procs_in_stm prog) (repeat Skip)
 
-{-
 testMixed :: FilePath -> IO ()
 testMixed filePath = do
     file <- readFile filePath
     putStrLn $ case parseMaybe (between space_consumer eof stm) file of
         Nothing   -> show "Error while parsing"
-        Just prog -> show (stm_val_mixed vars procs prog)
+        Just prog -> show (stm_val_mixed vars (StaticProc "" prog procs))
                      where vars = zip (vars_in_stm prog) (repeat 0)
-                           procs = zip (procs_in_stm prog) (repeat Skip)
--}
+                           procs = map (\x -> StaticProc x Skip []) (procs_in_stm prog)
 
 testVars :: FilePath -> IO ()
 testVars filePath = do
