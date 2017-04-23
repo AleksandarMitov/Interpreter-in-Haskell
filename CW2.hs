@@ -73,24 +73,24 @@ stm_val_mixed :: [(Var, Z)] -> StaticProc -> [(Var, Z)]
 stm_val_mixed vars (StaticProc pname Skip procs) = vars
 stm_val_mixed vars (StaticProc pname (Ass var expr) procs) = dyn_update_var vars var (aexp_val (dyn_get_var vars) expr)
 stm_val_mixed vars (StaticProc pname (Comp stm1 stm2) procs) = stm_val_mixed updated_vars (StaticProc pname stm2 procs)
-                                    where updated_vars = stm_val_mixed vars (StaticProc pname stm1 procs)
+                            where updated_vars = stm_val_mixed vars (StaticProc pname stm1 procs)
 stm_val_mixed vars (StaticProc pname (If bexpr stm1 stm2) procs) = case (bexp_val (dyn_get_var vars) bexpr) of
-                                    True -> stm_val_mixed vars (StaticProc pname stm1 procs)
-                                    False -> stm_val_mixed vars (StaticProc pname stm2 procs)
+                            True -> stm_val_mixed vars (StaticProc pname stm1 procs)
+                            False -> stm_val_mixed vars (StaticProc pname stm2 procs)
 stm_val_mixed vars (StaticProc pname (While bexpr stm) procs) = case (bexp_val (dyn_get_var vars) bexpr) of
-                                    True -> stm_val_mixed updated_vars (StaticProc pname (While bexpr stm) procs)
-                                    False -> vars
-                                    where updated_vars = stm_val_mixed vars (StaticProc pname stm procs)
+                            True -> stm_val_mixed updated_vars (StaticProc pname (While bexpr stm) procs)
+                            False -> vars
+                            where updated_vars = stm_val_mixed vars (StaticProc pname stm procs)
 stm_val_mixed vars (StaticProc pname (Block decv decp stm) procs) = stm_val_mixed v1 (StaticProc pname stm p1)
-                                            where v1 = decv_val vars decv
-                                                  p1 = static_decp_val procs decp
+                            where v1 = decv_val vars decv
+                                  p1 = static_decp_val procs decp
 stm_val_mixed vars (StaticProc pname (Call call_proc) procs) = if pname == call_proc
-    then stm_val_mixed vars (StaticProc call_proc stm_proc procs)
-    else stm_val_mixed vars (StaticProc call_proc stm_proc subproc_procs)
-    where stm_proc = case (static_get_proc procs call_proc) of
-            StaticProc pn sb ps -> sb
-          subproc_procs = case (static_get_proc procs call_proc) of
-            StaticProc pn sb ps -> ps
+                            then stm_val_mixed vars (StaticProc call_proc stm_proc procs)
+                            else stm_val_mixed vars (StaticProc call_proc stm_proc subproc_procs)
+                            where stm_proc = case (static_get_proc procs call_proc) of
+                                        StaticProc pn sb ps -> sb
+                                  subproc_procs = case (static_get_proc procs call_proc) of
+                                        StaticProc pn sb ps -> ps
 
 --Evaluates an Aexp expression
 aexp_val :: State -> Aexp -> Z
