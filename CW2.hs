@@ -335,7 +335,7 @@ ifStm = do
     reserved_word "if"
     cond  <- bexp
     reserved_word "then"
-    stmt1 <- try (parens stm) <|> try stm_base
+    stmt1 <- stm
     reserved_word "else"
     stmt2 <- try (parens stm) <|> try stm_base
     return (If cond stmt1 stmt2)
