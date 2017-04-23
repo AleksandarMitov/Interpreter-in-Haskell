@@ -8,6 +8,7 @@ if((var_name <= 3434535) & (var_name2*2 <= var_name))
 			call func_name;
 			call func_name2;
 			var_name3 := 45;
+			//var_name2 := var_name2 + 1;
 			begin
 				var var_name4 := 34;
 				var var_name5 := 45;
@@ -52,7 +53,8 @@ if((var_name <= 3434535) & (var_name2*2 <= var_name))
 			skip;
 			begin
 				call jjj
-			end
+			end;
+			var_name2 := var_name2 + 1
 		)
 	)
 	else
