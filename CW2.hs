@@ -62,9 +62,10 @@ stm_val vars procs (While bexpr stm) = case (bexp_val (dyn_get_var vars) bexpr) 
                                     where s1 = stm_val vars procs stm
                                           v1 = fst s1
                                           p1 = snd s1
-stm_val vars procs (Block decv decp stm) = stm_val v1 p1 stm
+stm_val vars procs (Block decv decp stm) = (fst s1, procs)
                                             where v1 = decv_val vars decv
                                                   p1 = decp_val procs decp
+                                                  s1 = stm_val v1 p1 stm
 stm_val vars procs (Call pname) = stm_val vars procs (dyn_get_proc procs pname)
 
 --Evaluates an Stm expression with dynamic vars and static procs
@@ -202,10 +203,16 @@ vars_in_bexp (And bexp1 bexp2) = nub (vars_in_bexp(bexp1) ++ vars_in_bexp(bexp2)
 vars_in_bexp (Le aexp1 aexp2) = nub (vars_in_aexp(aexp1) ++ vars_in_aexp(aexp2))
 vars_in_bexp (Eq aexp1 aexp2) = nub (vars_in_aexp(aexp1) ++ vars_in_aexp(aexp2))
 
---Retuns a list of unique var names referenced in the DecV expression
+--Retuns a list of unique var names ***referenced*** in the DecV expression
 vars_in_decv :: DecV -> [Var]
 vars_in_decv ([]) = []
 vars_in_decv ((x, y):rest) = nub ([x] ++ vars_in_aexp(y) ++ vars_in_decv(rest))
+
+--Retuns a list of unique var names ***declared*** in the DecV expression
+--Implementation of DV(Dv) in the book, p.51
+local_vars_in_decv :: DecV -> [Var]
+local_vars_in_decv ([]) = []
+local_vars_in_decv ((x, y):rest) = nub ([x] ++ local_vars_in_decv(rest))
 
 --Retuns a list of unique var names referenced in the DecP expression
 vars_in_decp :: DecP -> [Var]
