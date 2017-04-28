@@ -1,4 +1,4 @@
-x := 20;
+x := 600;
 begin
   proc fac is (
     begin
