@@ -1,7 +1,8 @@
-x := 5;
+x := 20;
 begin
   proc fac is (
     begin
+      //var x := x;
       var z:=x;
       if (x = 1) then
         skip
