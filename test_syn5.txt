@@ -1,0 +1,26 @@
+y := 0;
+z := 0;
+begin   
+  	proc a is (
+            y := 3;
+	    z := 3
+        );
+        proc b is (
+		if (y <= 100) then call q else call vvv
+	);
+	proc v is skip;
+	proc vvv is skip;
+	proc q is (y := y + 1; call b);
+        proc c is (
+             begin
+                  proc a is (
+                      y := 4
+                  );
+                  z := 5;
+                  call a
+             end;
+	     z := 6
+        );
+        call c;
+	call b
+end
