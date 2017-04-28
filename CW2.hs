@@ -88,9 +88,14 @@ stm_val_mixed vars (StaticProc pname (While bexpr stm) procs) = case (bexp_val (
                             True -> stm_val_mixed updated_vars (StaticProc pname (While bexpr stm) procs)
                             False -> vars
                             where updated_vars = stm_val_mixed vars (StaticProc pname stm procs)
-stm_val_mixed vars (StaticProc pname (Block decv decp stm) procs) = stm_val_mixed v1 (StaticProc pname stm p1)
+stm_val_mixed vars (StaticProc pname (Block decv decp stm) procs) = result_state
                             where v1 = decv_val vars decv
                                   p1 = static_decp_val procs decp
+                                  updated_state = stm_val_mixed v1 (StaticProc pname stm p1)
+                                  local_vars = local_vars_in_decv decv
+                                  result_state = map (\(x, y) -> if elem x local_vars
+                                      then (x, dyn_get_var vars x)
+                                      else (x, y)) updated_state
 stm_val_mixed vars (StaticProc pname (Call call_proc) procs) = if pname == call_proc
                             then stm_val_mixed vars (StaticProc call_proc stm_proc procs)
                             else stm_val_mixed vars (StaticProc call_proc stm_proc subproc_procs)
