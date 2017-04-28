@@ -96,15 +96,17 @@ stm_val_mixed vars (MixedProc pname (Block decv decp stm) procs decp0) = result_
                                   result_state = map (\(x, y) -> if elem x local_vars
                                       then (x, dyn_get_var vars x)
                                       else (x, y)) updated_state
-stm_val_mixed vars (MixedProc pname (Call call_proc) procs decp) = case elemIndex call_proc (fst (unzip decp)) of
-                            Just index -> stm_val_mixed vars (MixedProc call_proc (snd (decp !! index)) procs decp)
-                            Nothing -> stm_val_mixed vars (MixedProc call_proc stm_proc subproc_procs subproc_decp)
-                            where stm_proc = case (static_get_proc procs call_proc) of
-                                        MixedProc pn sb ps decp1 -> sb
-                                  subproc_procs = case (static_get_proc procs call_proc) of
-                                        MixedProc pn sb ps decp1 -> ps
-                                  subproc_decp = case (static_get_proc procs call_proc) of
-                                        MixedProc pn sb ps decp1 -> decp1
+stm_val_mixed vars (MixedProc pname (Call call_proc) procs decp) = case elemIndex call_proc (map (\(MixedProc n s ps ds) -> n) procs) of
+                            Just index -> stm_val_mixed vars (MixedProc call_proc stm_proc subproc_procs subproc_decp)
+                                  where stm_proc = case (static_get_proc procs call_proc) of
+                                            MixedProc pn sb ps decp1 -> sb
+                                        subproc_procs = case (static_get_proc procs call_proc) of
+                                            MixedProc pn sb ps decp1 -> ps
+                                        subproc_decp = case (static_get_proc procs call_proc) of
+                                            MixedProc pn sb ps decp1 -> decp1
+                            Nothing -> case elemIndex call_proc (fst (unzip decp)) of
+                                  Just index2 -> stm_val_mixed vars (MixedProc call_proc (snd (decp !! index2)) procs decp)
+                                  Nothing -> stm_val_mixed vars (MixedProc call_proc Skip [] [])
 
 --Evaluates an Aexp expression
 aexp_val :: State -> Aexp -> Z
@@ -452,7 +454,6 @@ testMixed filePath = do
         Nothing   -> show "Error while parsing"
         Just prog -> show (stm_val_mixed vars (MixedProc "" prog [] []))
                      where vars = zip (vars_in_stm prog) (repeat 0)
-                           procs = map (\x -> MixedProc x Skip [] []) (procs_in_stm prog)
 
 testVars :: FilePath -> IO ()
 testVars filePath = do
