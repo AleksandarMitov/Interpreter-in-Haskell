@@ -114,13 +114,42 @@ stm_val_mixed vars (MixedProc pname (Call call_proc) procs decp) = case elemInde
                                   Just index2 -> stm_val_mixed vars (MixedProc call_proc (snd (decp !! index2)) procs decp)
                                   Nothing -> stm_val_mixed vars (MixedProc call_proc Skip [] [])
 
---Evaluates an Stm expression with dynamic vars and static procs
+--Evaluates an Stm expression with dynamic vars and static procs, retuns the updated store
 --The logic assumes var_locs already contains lcoations for all global vars, i.e the ones created with an Ass statement
 --TODO: TEST IT
-stm_val_static :: [Z] -> StaticProc -> ([Z], StaticProc)
-stm_val_static vals (StaticProc pname Skip procs decp var_locs) = (vals, StaticProc pname Skip procs decp var_locs)
+stm_val_static :: [Z] -> StaticProc -> [Z]
+stm_val_static vals (StaticProc pname Skip procs decp var_locs) = vals
 stm_val_static vals (StaticProc pname (Ass var expr) procs decp var_locs) = result
-    where result = (static_update_var vals var_locs var (aexp_val (static_extract_state vals var_locs) expr), StaticProc pname (Ass var expr) procs decp var_locs)
+    where result = static_update_var vals var_locs var (aexp_val (static_extract_state vals var_locs) expr)
+stm_val_static vals (StaticProc pname (Comp stm1 stm2) procs decp var_locs) = stm_val_static updated_vals (StaticProc pname stm2 procs decp var_locs)
+    where updated_vals = stm_val_static vals (StaticProc pname stm1 procs decp var_locs)
+stm_val_static vals (StaticProc pname (If bexpr stm1 stm2) procs decp var_locs) = case (bexp_val (static_extract_state vals var_locs) bexpr) of
+    True -> stm_val_static vals (StaticProc pname stm1 procs decp var_locs)
+    False -> stm_val_static vals (StaticProc pname stm2 procs decp var_locs)
+stm_val_static vals (StaticProc pname (While bexpr stm) procs decp var_locs) = case (bexp_val (static_extract_state vals var_locs) bexpr) of
+    True -> stm_val_static updated_vals (StaticProc pname (While bexpr stm) procs decp var_locs)
+    False -> vals
+    where updated_vals = stm_val_static vals (StaticProc pname stm procs decp var_locs)
+stm_val_static vals (StaticProc pname (Block decv decp stm) procs decp0 var_locs) = result_store
+    where injected_local_vars = static_decv_val vals var_locs decv
+          v1 = fst injected_local_vars
+          v2 = snd injected_local_vars
+          p1 = static_decp_val procs decp decp
+          updated_store = stm_val_static v1 (StaticProc pname stm p1 decp0 v2)
+          local_vars = local_vars_in_decv decv
+          result_store = static_clean_store_from_local_vals updated_store vals local_vars v2
+
+--Takes a store and reverts the values of all vars whose values were overriden by local vars of the same name
+--TODO: TEST IT
+static_clean_store_from_local_vals :: [Z] -> [Z] -> [Var] -> [(Var, Loc)] -> [Z]
+static_clean_store_from_local_vals uncleaned_store old_store [] var_locs = uncleaned_store
+static_clean_store_from_local_vals uncleaned_store old_store (local_var : rest) var_locs = []
+
+--evaluates a DecV for static variable scoping
+--TODO: TEST IT
+static_decv_val :: [Z] -> [(Var, Loc)] -> DecV -> ([Z], [(Var, Loc)])
+static_decv_val vals var_locs [] = (vals, var_locs)
+static_decv_val vals var_locs ((var_name, var_exp):rest) = ([], [])
 
 --extracts the variables given a proc's var-loc pairs
 --TODO: TEST IT
