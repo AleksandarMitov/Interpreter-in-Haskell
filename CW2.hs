@@ -143,7 +143,12 @@ stm_val_static vals (StaticProc pname (Block decv decp stm) procs decp0 var_locs
 --TODO: TEST IT
 static_clean_store_from_local_vals :: [Z] -> [Z] -> [Var] -> [(Var, Loc)] -> [Z]
 static_clean_store_from_local_vals uncleaned_store old_store [] var_locs = uncleaned_store
-static_clean_store_from_local_vals uncleaned_store old_store (local_var : rest) var_locs = []
+static_clean_store_from_local_vals uncleaned_store old_store (local_var:rest) var_locs = static_clean_store_from_local_vals cleaned_var_in_store old_store rest var_locs
+    where var_loc = case elemIndex local_var (fst (unzip var_locs)) of
+                Just index -> snd (var_locs !! index)
+                otherwise -> error "local var not found in var_locs"
+          old_var_value = old_store !! var_loc
+          cleaned_var_in_store = take var_loc uncleaned_store ++ [old_var_value] ++ drop (var_loc + 1) uncleaned_store
 
 --evaluates a DecV for static variable scoping
 --TODO: TEST IT
