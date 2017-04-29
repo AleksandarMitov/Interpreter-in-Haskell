@@ -35,7 +35,7 @@ type Loc = Int
 type Store = Loc -> Z
 type Env = Var -> Loc
 --data type used for implementing static scoping
-data StaticProc = StaticProc Pname Stm [MixedProc] DecP [(Var, Loc)]
+data StaticProc = StaticProc Pname Stm [StaticProc] DecP [(Var, Loc)]
 
 --TODO TEST IT
 s_dynamic :: Stm -> State -> State
@@ -96,7 +96,7 @@ stm_val_mixed vars (MixedProc pname (While bexpr stm) procs decp) = case (bexp_v
                             where updated_vars = stm_val_mixed vars (MixedProc pname stm procs decp)
 stm_val_mixed vars (MixedProc pname (Block decv decp stm) procs decp0) = result_state
                             where v1 = decv_val vars decv
-                                  p1 = static_decp_val procs decp decp
+                                  p1 = mixed_decp_val procs decp decp
                                   updated_state = stm_val_mixed v1 (MixedProc pname stm p1 decp0)
                                   local_vars = local_vars_in_decv decv
                                   result_state = map (\(x, y) -> if elem x local_vars
@@ -104,11 +104,11 @@ stm_val_mixed vars (MixedProc pname (Block decv decp stm) procs decp0) = result_
                                       else (x, y)) updated_state
 stm_val_mixed vars (MixedProc pname (Call call_proc) procs decp) = case elemIndex call_proc (map (\(MixedProc n s ps ds) -> n) procs) of
                             Just index -> stm_val_mixed vars (MixedProc call_proc stm_proc subproc_procs subproc_decp)
-                                  where stm_proc = case (static_get_proc procs call_proc) of
+                                  where stm_proc = case (mixed_get_proc procs call_proc) of
                                             MixedProc pn sb ps decp1 -> sb
-                                        subproc_procs = case (static_get_proc procs call_proc) of
+                                        subproc_procs = case (mixed_get_proc procs call_proc) of
                                             MixedProc pn sb ps decp1 -> ps
-                                        subproc_decp = case (static_get_proc procs call_proc) of
+                                        subproc_decp = case (mixed_get_proc procs call_proc) of
                                             MixedProc pn sb ps decp1 -> decp1
                             Nothing -> case elemIndex call_proc (fst (unzip decp)) of
                                   Just index2 -> stm_val_mixed vars (MixedProc call_proc (snd (decp !! index2)) procs decp)
@@ -134,10 +134,23 @@ stm_val_static vals (StaticProc pname (Block decv decp stm) procs decp0 var_locs
     where injected_local_vars = static_decv_val vals var_locs decv
           v1 = fst injected_local_vars
           v2 = snd injected_local_vars
-          p1 = static_decp_val procs decp decp
+          p1 = static_decp_val procs decp decp var_locs
           updated_store = stm_val_static v1 (StaticProc pname stm p1 decp0 v2)
           local_vars = local_vars_in_decv decv
           result_store = static_clean_store_from_local_vals updated_store vals local_vars v2
+stm_val_static vals (StaticProc pname (Call call_proc) procs decp var_locs) = case elemIndex call_proc (map (\(StaticProc n s ps ds vls) -> n) procs) of
+    Just index -> stm_val_static vals (StaticProc call_proc stm_proc subproc_procs subproc_decp subproc_var_locs)
+        where stm_proc = case (static_get_proc procs call_proc) of
+                    StaticProc pn sb ps decp1 vls -> sb
+              subproc_procs = case (static_get_proc procs call_proc) of
+                    StaticProc pn sb ps decp1 vls -> ps
+              subproc_decp = case (static_get_proc procs call_proc) of
+                    StaticProc pn sb ps decp1 vls -> decp1
+              subproc_var_locs = case (static_get_proc procs call_proc) of
+                    StaticProc pn sb ps decp1 vls -> vls
+    Nothing -> case elemIndex call_proc (fst (unzip decp)) of
+            Just index2 -> stm_val_static vals (StaticProc call_proc (snd (decp !! index2)) procs decp var_locs)
+            Nothing -> stm_val_static vals (StaticProc call_proc Skip [] [] var_locs)
 
 --Takes a store and reverts the values of all vars whose values were overriden by local vars of the same name
 --TODO: TEST IT
@@ -208,11 +221,20 @@ decp_val procs ((proc_name, proc_expr):rest) = decp_val (dyn_update_proc procs p
 --Evaluates a DecP expression
 --injecting the current proc body twice via the injected_current_proc variable in order to support recursion
 --with this, the current proc will have its body available in the list of procs that the proc has access to
-static_decp_val :: [MixedProc] -> DecP -> DecP -> [MixedProc]
-static_decp_val procs [] same_level_decps = procs
-static_decp_val procs ((proc_name, proc_expr):rest) same_level_decps = static_decp_val updated_list rest same_level_decps
-                                where injected_current_proc = static_update_proc procs proc_name proc_expr procs same_level_decps
-                                      updated_list = static_update_proc procs proc_name proc_expr injected_current_proc same_level_decps
+mixed_decp_val :: [MixedProc] -> DecP -> DecP -> [MixedProc]
+mixed_decp_val procs [] same_level_decps = procs
+mixed_decp_val procs ((proc_name, proc_expr):rest) same_level_decps = mixed_decp_val updated_list rest same_level_decps
+                                where injected_current_proc = mixed_update_proc procs proc_name proc_expr procs same_level_decps
+                                      updated_list = mixed_update_proc procs proc_name proc_expr injected_current_proc same_level_decps
+
+--Evaluates a DecP expression
+--injecting the current proc body twice via the injected_current_proc variable in order to support recursion
+--with this, the current proc will have its body available in the list of procs that the proc has access to
+static_decp_val :: [StaticProc] -> DecP -> DecP -> [(Var, Loc)] -> [StaticProc]
+static_decp_val procs [] same_level_decps var_locs = procs
+static_decp_val procs ((proc_name, proc_expr):rest) same_level_decps var_locs = static_decp_val updated_list rest same_level_decps var_locs
+                                where injected_current_proc = static_update_proc procs proc_name proc_expr procs same_level_decps var_locs
+                                      updated_list = static_update_proc procs proc_name proc_expr injected_current_proc same_level_decps var_locs
 
 --Returns a DecP with the updated procedure body
 dyn_update_proc :: [(Pname, Stm)] -> Pname -> Stm -> [(Pname, Stm)]
@@ -221,11 +243,18 @@ dyn_update_proc procs proc_name proc_body = case elemIndex (proc_name) (fst (unz
                                             Nothing -> procs
 
 --Returns a DecP with the updated procedure body
-static_update_proc :: [MixedProc] -> Pname -> Stm -> [MixedProc] -> DecP -> [MixedProc]
-static_update_proc [] proc_name proc_body proc_procs proc_decp = [MixedProc proc_name proc_body proc_procs proc_decp]
-static_update_proc ((MixedProc pname pbody pprocs pdecp):rest) proc_name proc_body proc_procs proc_decp = if proc_name == pname
+mixed_update_proc :: [MixedProc] -> Pname -> Stm -> [MixedProc] -> DecP -> [MixedProc]
+mixed_update_proc [] proc_name proc_body proc_procs proc_decp = [MixedProc proc_name proc_body proc_procs proc_decp]
+mixed_update_proc ((MixedProc pname pbody pprocs pdecp):rest) proc_name proc_body proc_procs proc_decp = if proc_name == pname
     then (MixedProc pname proc_body proc_procs proc_decp) : rest
-    else (MixedProc pname pbody pprocs pdecp) : (static_update_proc rest proc_name proc_body proc_procs proc_decp)
+    else (MixedProc pname pbody pprocs pdecp) : (mixed_update_proc rest proc_name proc_body proc_procs proc_decp)
+
+--Returns a DecP with the updated procedure body
+static_update_proc :: [StaticProc] -> Pname -> Stm -> [StaticProc] -> DecP -> [(Var, Loc)] -> [StaticProc]
+static_update_proc [] proc_name proc_body proc_procs proc_decp proc_var_locs = [StaticProc proc_name proc_body proc_procs proc_decp proc_var_locs]
+static_update_proc ((StaticProc pname pbody pprocs pdecp pvar_locs):rest) proc_name proc_body proc_procs proc_decp proc_var_locs = if proc_name == pname
+    then (StaticProc pname proc_body proc_procs proc_decp proc_var_locs) : rest
+    else (StaticProc pname pbody pprocs pdecp pvar_locs) : (static_update_proc rest proc_name proc_body proc_procs proc_decp proc_var_locs)
 
 --Returns a list of tuples with the updated var value
 dyn_update_var :: [(Var, Z)] -> Var -> Z -> [(Var, Z)]
@@ -240,10 +269,17 @@ dyn_get_proc procs proc_name = case elemIndex (proc_name) (fst (unzip procs)) of
                                 Nothing -> Skip
 
 --Returns the MixedProc associated with the proc name
-static_get_proc :: [MixedProc] -> Pname -> MixedProc
-static_get_proc [] proc_name = MixedProc proc_name Skip [] []
-static_get_proc ((MixedProc pname pbody pprocs pdecp):rest) proc_name = if proc_name == pname
+mixed_get_proc :: [MixedProc] -> Pname -> MixedProc
+mixed_get_proc [] proc_name = MixedProc proc_name Skip [] []
+mixed_get_proc ((MixedProc pname pbody pprocs pdecp):rest) proc_name = if proc_name == pname
     then MixedProc pname pbody pprocs pdecp
+    else mixed_get_proc rest proc_name
+
+--Returns the StaticProc associated with the proc name
+static_get_proc :: [StaticProc] -> Pname -> StaticProc
+static_get_proc [] proc_name = StaticProc proc_name Skip [] [] []
+static_get_proc ((StaticProc pname pbody pprocs pdecp pvar_locs):rest) proc_name = if proc_name == pname
+    then StaticProc pname pbody pprocs pdecp pvar_locs
     else static_get_proc rest proc_name
 
 --Returns the Z val associated with the var
@@ -524,6 +560,14 @@ testMixed filePath = do
         Nothing   -> show "Error while parsing"
         Just prog -> show (stm_val_mixed vars (MixedProc "" prog [] []))
                      where vars = zip (vars_in_stm prog) (repeat 0)
+
+testStatic :: FilePath -> IO ()
+testStatic filePath = do
+    file <- readFile filePath
+    putStrLn $ case parseMaybe (between space_consumer eof stm) file of
+        Nothing   -> show "Error while parsing"
+        Just prog -> show (stm_val_static vals (MixedProc "" prog [] []))
+                     where vals = repeat 0
 
 testVars :: FilePath -> IO ()
 testVars filePath = do
