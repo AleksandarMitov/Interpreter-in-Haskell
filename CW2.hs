@@ -27,9 +27,16 @@ data Stm = Skip | Ass Var Aexp | Comp Stm Stm
 
 type EnvP = Pname -> Stm
 
---data type with a constructor taking a proc name, its associated stm body
---and a list of available procs to be called from the current proc
+--data type used for implementing mixed scoping
 data MixedProc = MixedProc Pname Stm [MixedProc] DecP
+
+--types for implementing static variable scope
+type Loc = Z
+type Store = Loc -> Z
+type Env = Var -> Loc
+--data type used for implementing static scoping
+data StaticProc = StaticProc Pname Stm [MixedProc] DecP [(Var, Loc)]
+
 
 --TODO TEST IT
 s_dynamic :: Stm -> State -> State
