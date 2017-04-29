@@ -1,0 +1,1 @@
+begin proc p is (if true then skip else (skip; skip; skip)); skip end

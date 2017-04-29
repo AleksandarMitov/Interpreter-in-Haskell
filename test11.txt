@@ -1,0 +1,1 @@
+begin proc p is (skip); (skip; skip; skip) end
