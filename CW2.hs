@@ -31,12 +31,11 @@ type EnvP = Pname -> Stm
 data MixedProc = MixedProc Pname Stm [MixedProc] DecP
 
 --types for implementing static variable scope
-type Loc = Z
+type Loc = Int
 type Store = Loc -> Z
 type Env = Var -> Loc
 --data type used for implementing static scoping
 data StaticProc = StaticProc Pname Stm [MixedProc] DecP [(Var, Loc)]
-
 
 --TODO TEST IT
 s_dynamic :: Stm -> State -> State
@@ -115,6 +114,28 @@ stm_val_mixed vars (MixedProc pname (Call call_proc) procs decp) = case elemInde
                                   Just index2 -> stm_val_mixed vars (MixedProc call_proc (snd (decp !! index2)) procs decp)
                                   Nothing -> stm_val_mixed vars (MixedProc call_proc Skip [] [])
 
+--Evaluates an Stm expression with dynamic vars and static procs
+--The logic assumes var_locs already contains lcoations for all global vars, i.e the ones created with an Ass statement
+--TODO: TEST IT
+stm_val_static :: [Z] -> StaticProc -> ([Z], StaticProc)
+stm_val_static vals (StaticProc pname Skip procs decp var_locs) = (vals, StaticProc pname Skip procs decp var_locs)
+stm_val_static vals (StaticProc pname (Ass var expr) procs decp var_locs) = result
+    where result = (static_update_var vals var_locs var (aexp_val (static_extract_state vals var_locs) expr), StaticProc pname (Ass var expr) procs decp var_locs)
+
+--extracts the variables given a proc's var-loc pairs
+--TODO: TEST IT
+static_extract_state :: [Z] -> [(Var, Loc)] -> State
+static_extract_state vals var_locs = dyn_get_var proc_vals
+                            where proc_vals = map (\(var_name, locationIndex) -> (var_name, vals !! locationIndex)) var_locs
+
+--take the store, a list of a proc's pairs of (var_name, location in the store) and changes the store to reflect the change of the given var's value
+--TODO: TEST IT
+static_update_var :: [Z] -> [(Var, Loc)] -> Var -> Z -> [Z]
+static_update_var vals var_locs var value = case elemIndex var (fst (unzip var_locs)) of
+    Just n -> take varIndex vals ++ [value] ++ drop (varIndex + 1) vals
+        where varIndex = snd (var_locs !! n)
+    Nothing -> vals
+
 --Evaluates an Aexp expression
 aexp_val :: State -> Aexp -> Z
 aexp_val state (N num) = num
@@ -168,7 +189,7 @@ static_update_proc ((MixedProc pname pbody pprocs pdecp):rest) proc_name proc_bo
 dyn_update_var :: [(Var, Z)] -> Var -> Z -> [(Var, Z)]
 dyn_update_var vars var_name var_val = case elemIndex (var_name) (fst (unzip vars)) of
                                             Just index -> take index vars ++ [(var_name, var_val)] ++ drop (index + 1) vars
-                                            Nothing -> vars
+                                            Nothing -> vars ++ [(var_name, var_val)]
 
 --Returns the Stm associated with the proc
 dyn_get_proc :: [(Pname, Stm)] -> EnvP
