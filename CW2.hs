@@ -154,7 +154,15 @@ static_clean_store_from_local_vals uncleaned_store old_store (local_var:rest) va
 --TODO: TEST IT
 static_decv_val :: [Z] -> [(Var, Loc)] -> DecV -> ([Z], [(Var, Loc)])
 static_decv_val vals var_locs [] = (vals, var_locs)
-static_decv_val vals var_locs ((var_name, var_exp):rest) = ([], [])
+static_decv_val vals var_locs ((var_name, var_expr):rest) = static_decv_val updated_store updated_var_locs rest
+    where new_var_val = aexp_val (static_extract_state vals var_locs) var_expr
+          updated_var_locs = case elemIndex var_name (fst (unzip var_locs)) of
+              Just index -> var_locs
+              Nothing -> var_locs ++ [(var_name, length var_locs)]
+          updated_store = case elemIndex var_name (fst (unzip updated_var_locs)) of
+              Just index -> take var_loc vals ++ [new_var_val] ++ drop (var_loc + 1) vals
+                    where var_loc = snd (updated_var_locs !! index)
+              Nothing -> error "updated_var_locs doesn't containt a tuple with var_name"
 
 --extracts the variables given a proc's var-loc pairs
 --TODO: TEST IT
