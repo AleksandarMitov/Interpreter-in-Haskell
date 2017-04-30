@@ -624,7 +624,7 @@ testMixedScope inputList outputList stm = foldr (\x y -> x && y) True matches
     where result_state = s_mixed stm (createState inputList)
           matches = map (\(var_name, var_value) -> (var_value == (result_state var_name))) outputList
 
---first list is the initial state, all var values in the second list are compared against the produced state from running the function
+--first list is the initial state, all var values in the second list are compared against the produced state from running the function 
 testStaticScope :: [(Var, Z)] -> [(Var, Z)] -> Stm -> Bool
 testStaticScope inputList outputList stm = foldr (\x y -> x && y) True matches
     where result_state = s_static stm (createState inputList)
