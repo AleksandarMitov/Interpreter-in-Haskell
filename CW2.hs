@@ -567,39 +567,34 @@ parseFile filePath = do
     Nothing   -> show "Error while parsing"
     Just prog -> show prog
 
-main = putStrLn "Welcome to the parser implementation for the Proc language!"
+main = putStrLn "Welcome to the parser/interpreter implementation for the Proc language!"
+
+test_state :: State
+test_state _ = 0
 
 testDyn :: FilePath -> IO ()
 testDyn filePath = do
   file <- readFile filePath
   putStrLn $ case parseMaybe (between space_consumer eof stm) file of
     Nothing   -> show "Error while parsing"
-    Just prog -> show (stm_val vars procs prog)
-                    where vars = zip (vars_in_stm prog) (repeat 0)
-                          procs = zip (procs_in_stm prog) (repeat Skip)
+    Just prog -> show (extract_state (s_dynamic prog test_state) var_names)
+                    where var_names = vars_in_stm prog
 
 testMixed :: FilePath -> IO ()
 testMixed filePath = do
     file <- readFile filePath
     putStrLn $ case parseMaybe (between space_consumer eof stm) file of
         Nothing   -> show "Error while parsing"
-        Just prog -> show (stm_val_mixed vars (MixedProc "" prog [] []))
-                     where vars = zip (vars_in_stm prog) (repeat 0)
+        Just prog -> show (extract_state (s_mixed prog test_state) var_names)
+                     where var_names = vars_in_stm prog
 
 testStatic :: FilePath -> IO ()
 testStatic filePath = do
     file <- readFile filePath
     putStrLn $ case parseMaybe (between space_consumer eof stm) file of
         Nothing   -> show "Error while parsing"
-        Just prog -> show ((take 20 (stm_val_static vals (StaticProc "" prog [] [] var_locs))), var_locs)
-                     where vars = vars_in_stm prog
-                           vals = take (length vars) (repeat (0)) ++ (repeat (-1))
-                           var_locs = map (
-                                \x -> let val_index = case elemIndex x vars of
-                                            Just index -> index
-                                            otherwise -> error "something went wrong"
-                                            in (x, val_index)
-                            ) vars
+        Just prog -> show (extract_state (s_static prog test_state) var_names)
+                     where var_names = vars_in_stm prog
 
 testVars :: FilePath -> IO ()
 testVars filePath = do
