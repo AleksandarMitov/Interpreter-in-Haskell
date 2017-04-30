@@ -114,8 +114,9 @@ stm_val_mixed vars (MixedProc pname (Call call_proc) procs decp) = case elemInde
                                   Just index2 -> stm_val_mixed vars (MixedProc call_proc (snd (decp !! index2)) procs decp)
                                   Nothing -> stm_val_mixed vars (MixedProc call_proc Skip [] [])
 
---Evaluates an Stm expression with dynamic vars and static procs, retuns the updated store
+--Evaluates an Stm expression with static vars and static procs, retuns the updated store
 --The logic assumes var_locs already contains lcoations for all global vars, i.e the ones created with an Ass statement
+-- and that the store, vals, will initially be filled with values of -1, indicating a free slot
 --TODO: TEST IT
 stm_val_static :: [Z] -> StaticProc -> [Z]
 stm_val_static vals (StaticProc pname Skip procs decp var_locs) = vals
@@ -134,7 +135,7 @@ stm_val_static vals (StaticProc pname (Block decv decp stm) procs decp0 var_locs
     where injected_local_vars = static_decv_val vals var_locs decv
           v1 = fst injected_local_vars
           v2 = snd injected_local_vars
-          p1 = static_decp_val procs decp decp var_locs
+          p1 = static_decp_val procs decp decp v2
           updated_store = stm_val_static v1 (StaticProc pname stm p1 decp0 v2)
           local_vars = local_vars_in_decv decv
           result_store = static_clean_store_from_local_vals updated_store vals local_vars v2
@@ -164,14 +165,20 @@ static_clean_store_from_local_vals uncleaned_store old_store (local_var:rest) va
           cleaned_var_in_store = take var_loc uncleaned_store ++ [old_var_value] ++ drop (var_loc + 1) uncleaned_store
 
 --evaluates a DecV for static variable scoping
+--when declaring a local var, the var_locs will only have one pair for a given name
+--but we change the var_loc to a new free slot, so that the modification of the store
+--wont affect the value of a var with the same name defined elsewhere
 --TODO: TEST IT
 static_decv_val :: [Z] -> [(Var, Loc)] -> DecV -> ([Z], [(Var, Loc)])
 static_decv_val vals var_locs [] = (vals, var_locs)
 static_decv_val vals var_locs ((var_name, var_expr):rest) = static_decv_val updated_store updated_var_locs rest
     where new_var_val = aexp_val (static_extract_state vals var_locs) var_expr
+          free_slot_in_store = case elemIndex (-1) vals of
+              Just freeIndex -> freeIndex
+              Nothing -> error "cannot declare a local var, store if full"
           updated_var_locs = case elemIndex var_name (fst (unzip var_locs)) of
-              Just index -> var_locs
-              Nothing -> var_locs ++ [(var_name, length var_locs)]
+              Just index -> take index var_locs ++ [(var_name, free_slot_in_store)] ++ drop (index + 1) var_locs
+              Nothing -> var_locs ++ [(var_name, free_slot_in_store)]
           updated_store = case elemIndex var_name (fst (unzip updated_var_locs)) of
               Just index -> take var_loc vals ++ [new_var_val] ++ drop (var_loc + 1) vals
                     where var_loc = snd (updated_var_locs !! index)
@@ -189,7 +196,7 @@ static_update_var :: [Z] -> [(Var, Loc)] -> Var -> Z -> [Z]
 static_update_var vals var_locs var value = case elemIndex var (fst (unzip var_locs)) of
     Just n -> take varIndex vals ++ [value] ++ drop (varIndex + 1) vals
         where varIndex = snd (var_locs !! n)
-    Nothing -> vals
+    Nothing -> error "var not found in var_locs"
 
 --Evaluates an Aexp expression
 aexp_val :: State -> Aexp -> Z
