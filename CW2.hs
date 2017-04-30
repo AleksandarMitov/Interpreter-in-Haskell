@@ -573,8 +573,15 @@ testStatic filePath = do
     file <- readFile filePath
     putStrLn $ case parseMaybe (between space_consumer eof stm) file of
         Nothing   -> show "Error while parsing"
-        Just prog -> show (stm_val_static vals (MixedProc "" prog [] []))
-                     where vals = repeat 0
+        Just prog -> show ((take 20 (stm_val_static vals (StaticProc "" prog [] [] var_locs))), var_locs)
+                     where vars = vars_in_stm prog
+                           vals = take (length vars) (repeat (0)) ++ (repeat (-1))
+                           var_locs = map (
+                                \x -> let val_index = case elemIndex x vars of
+                                            Just index -> index
+                                            otherwise -> error "something went wrong"
+                                            in (x, val_index)
+                            ) vars
 
 testVars :: FilePath -> IO ()
 testVars filePath = do
