@@ -39,11 +39,29 @@ data StaticProc = StaticProc Pname Stm [StaticProc] DecP [(Var, Loc)]
 
 --TODO TEST IT
 s_dynamic :: Stm -> State -> State
-s_dynamic expr state = dyn_get_var (fst (stm_val vars procs expr))
-                        where var_names = vars_in_stm expr
-                              proc_names = procs_in_stm expr
-                              vars = extract_state state var_names
-                              procs = zip proc_names (repeat Skip)
+s_dynamic stm state = dyn_get_var (fst (stm_val vars procs stm))
+    where var_names = vars_in_stm stm
+          proc_names = procs_in_stm stm
+          vars = extract_state state var_names
+          procs = zip proc_names (repeat Skip)
+
+s_mixed :: Stm -> State -> State
+s_mixed stm state = dyn_get_var (stm_val_mixed vars (MixedProc "" stm [] []))
+    where var_names = vars_in_stm stm
+          vars = extract_state state var_names
+
+s_static :: Stm -> State -> State
+s_static stm state = static_extract_state result_store var_locs
+    where var_names = vars_in_stm stm
+          vars_in_state = extract_state state var_names
+          vals = (map (\(var_name, value) -> value) vars_in_state) ++ (repeat (-1))
+          var_locs = map (
+               \var_name-> let val_index = case elemIndex var_name (fst (unzip vars_in_state)) of
+                                Just index -> index
+                                otherwise -> error "something went wrong"
+                             in (var_name, val_index)
+           ) var_names
+          result_store = stm_val_static vals (StaticProc "" stm [] [] var_locs)
 
 --Returns a list of var names paired with their values extracted from the state function
 extract_state :: State -> [Var] -> [(Var, Z)]
