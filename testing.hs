@@ -659,11 +659,53 @@ mutal_recursion_stm = parse "\
     \call even \
 \end"
 
+test1_stm = parse "\
+\a := a + 1; \
+\source := source + 0; \
+\begin \
+	\begin \
+		\var b := 234 + b; \
+		\var z := 7; \
+		\proc p is ( \
+			\d := 1234; \
+			\f := z \
+		\); \
+		\proc pp is ( \
+			\call p \
+		\); \
+		\( \
+			\b := b + 2; \
+			\begin \
+				\var b := 100; \
+				\var z := 3; \
+				\proc p is ( \
+					\d := 9876; \
+					\f := z \
+				\); \
+				\call pp \
+			\end \
+		\) \
+	\end; \
+	\begin \
+		\proc recursive is ( \
+			\if (source <= 100) then ( \
+				\source := source + 1; \
+				\call recursive \
+			\) else skip \
+		\); \
+		\call recursive \
+	\end \
+\end"
+
 --runs the functions with initial state created from the first list,
 --testStaticScope tests if all var values in the second list match with the produced state's value
 main = do
-  print (testDynamicScope [("x", 0), ("y", 0)] [("y", 6)] scope_stm)
-  print (runDynamic [("x", 0), ("y", 0)] scope_stm)
+  print (testDynamicScope [("a", 999)] [("a", 1000), ("source", 101), ("b", 0), ("y", 0), ("d", 9876), ("f", 3)] test1_stm)
+  print (testMixedScope [("a", 999)] [("a", 1000), ("source", 101), ("b", 0), ("y", 0), ("d", 1234), ("f", 3)] test1_stm)
+  print (testStaticScope [("a", 999)] [("a", 1000), ("source", 101), ("b", 0), ("y", 0), ("d", 1234), ("f", 7)] test1_stm)
+  print (runDynamic [("a", 999), ("source", 0), ("b", 0), ("y", 0), ("d", 0), ("f", 0)] test1_stm)
+  print (runMixed [("a", 999), ("source", 0), ("b", 0), ("y", 0), ("d", 0), ("f", 0)] test1_stm)
+  print (runStatic [("a", 999), ("source", 0), ("b", 0), ("y", 0), ("d", 0), ("f", 0)] test1_stm)
 
 --first list is the initial state, all var values in the second list are compared against the produced state from running the function
 testDynamicScope :: [(Var, Z)] -> [(Var, Z)] -> Stm -> Bool
