@@ -569,10 +569,6 @@ parseFile filePath = do
     Nothing   -> show "Error while parsing"
     Just prog -> show prog
 
-main = putStrLn "Welcome to the parser/interpreter implementation for the Proc language!"
-
-test_state :: State
-test_state _ = 0
 
 testDyn :: FilePath -> IO ()
 testDyn filePath = do
@@ -611,6 +607,63 @@ testProcs filePath = do
   putStrLn $ case parseMaybe (between space_consumer eof stm) file of
     Nothing   -> show "Error while parsing"
     Just prog -> show (intercalate ", " (procs_in_stm(prog)))
+
+
+test_state :: State
+test_state _ = 0
+
+-- static: y=5; dynamic: y=6; mixed: y=10
+scope_stm = parse " \
+\ begin var x:= 0; \
+  \ proc p is x:=x*2; \
+  \ proc q is call p; \
+  \ begin var x := 5; \
+    \ proc p is x := x+1; \
+    \ call q;\
+    \ y := x \
+  \ end \
+\ end"
+
+-- x=11
+recursive_stm = parse "\
+\x := 1; begin \
+  \proc fac1 is begin \
+    \if x<=10 then \
+      \x:=x+1; \
+      \call fac1 \
+    \else \
+      \skip \
+  \end; \
+  \call fac1 \
+\end"
+
+
+-- Even varible should be 1 if x is even else 0
+-- Note load x via a state
+mutal_recursion_stm = parse "\
+\even := 0; begin \
+  \proc even is begin \
+    \if x=0 then \
+        \even:=1 \
+    \else (\
+        \x:=x-1; \
+        \call odd )\
+  \end; \
+  \proc odd is begin \
+    \if x=0 then \
+        \even:=0 \
+    \else (\
+        \x:=x-1; \
+        \call even )\
+    \end; \
+    \call even \
+\end"
+
+--runs the functions with initial state created from the first list,
+--testStaticScope tests if all var values in the second list match with the produced state's value
+main = do
+  print (testDynamicScope [("x", 0), ("y", 0)] [("y", 6)] scope_stm)
+  print (runDynamic [("x", 0), ("y", 0)] scope_stm)
 
 --first list is the initial state, all var values in the second list are compared against the produced state from running the function
 testDynamicScope :: [(Var, Z)] -> [(Var, Z)] -> Stm -> Bool
