@@ -32,9 +32,6 @@ data MixedProc = MixedProc Pname Stm [MixedProc] DecP
 
 --types for implementing static variable scope
 type Loc = Int
-type Store = Loc -> Z
-type Env = Var -> Loc
---data type used for implementing static scoping
 data StaticProc = StaticProc Pname Stm [StaticProc] DecP [(Var, Loc)]
 
 --TODO TEST IT
@@ -50,11 +47,16 @@ s_mixed stm state = dyn_get_var (stm_val_mixed vars (MixedProc "" stm [] []))
     where var_names = vars_in_stm stm
           vars = extract_state state var_names
 
+--used for the static variable scope implementation
+--the store will initially be filled with the value below, indicating that it is free
+free_slot_value :: Z
+free_slot_value = -123456789
+
 s_static :: Stm -> State -> State
 s_static stm state = static_extract_state result_store var_locs
     where var_names = vars_in_stm stm
           vars_in_state = extract_state state var_names
-          vals = (map (\(var_name, value) -> value) vars_in_state) ++ (repeat (-1))
+          vals = (map (\(var_name, value) -> value) vars_in_state) ++ (repeat free_slot_value)
           var_locs = map (
                \var_name-> let val_index = case elemIndex var_name (fst (unzip vars_in_state)) of
                                 Just index -> index
@@ -134,7 +136,7 @@ stm_val_mixed vars (MixedProc pname (Call call_proc) procs decp) = case elemInde
 
 --Evaluates an Stm expression with static vars and static procs, retuns the updated store
 --The logic assumes var_locs already contains lcoations for all global vars, i.e the ones created with an Ass statement
--- and that the store, vals, will initially be filled with values of -1, indicating a free slot
+-- and that the store, vals, will initially be filled with values of free_slot_value, indicating a free slot
 --TODO: TEST IT
 stm_val_static :: [Z] -> StaticProc -> [Z]
 stm_val_static vals (StaticProc pname Skip procs decp var_locs) = vals
@@ -191,7 +193,7 @@ static_decv_val :: [Z] -> [(Var, Loc)] -> DecV -> ([Z], [(Var, Loc)])
 static_decv_val vals var_locs [] = (vals, var_locs)
 static_decv_val vals var_locs ((var_name, var_expr):rest) = static_decv_val updated_store updated_var_locs rest
     where new_var_val = aexp_val (static_extract_state vals var_locs) var_expr
-          free_slot_in_store = case elemIndex (-1) vals of
+          free_slot_in_store = case elemIndex free_slot_value vals of
               Just freeIndex -> freeIndex
               Nothing -> error "cannot declare a local var, store if full"
           updated_var_locs = case elemIndex var_name (fst (unzip var_locs)) of
