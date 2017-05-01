@@ -1,0 +1,18 @@
+even := 0;
+begin 
+  proc even is begin
+    if x=0 then
+        even:=1
+    else (
+        x:=x-1;
+        call odd )
+  end;
+  proc odd is begin
+    if x=0 then
+        even:=0
+    else (
+        x:=x-1;
+        call even )
+    end;
+    call even
+end

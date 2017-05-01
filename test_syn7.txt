@@ -1,0 +1,44 @@
+a := a + 1;
+source := source + 0;
+source2 := source;
+begin
+	begin
+		var b := 234 + b;
+		var z := 7;
+		proc p is (
+			d := 1234;
+			f := z
+		);
+		proc pp is (
+			call p
+		);
+		(
+			b := b + 2;
+			begin
+				var b := 100;
+				var z := 3;
+				proc p is (
+					d := 9876;
+					f := z
+				);
+				(
+					call pp
+				)
+			end
+		)
+	end;
+	begin
+		proc recursive is (
+			if (source <= 100) then (
+				source := source + 1;
+				call recursive
+			) else skip
+		);
+		(
+			while (source2 <= 100) do (
+				source2 := source2 + 1
+			);
+			call recursive
+		)
+	end
+end
