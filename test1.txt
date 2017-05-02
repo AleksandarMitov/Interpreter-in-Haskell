@@ -1,15 +1,17 @@
 //fac call (p.55)
+x := 3;
+y := 1;
 begin
-proc fac is
-begin
-var z:=x;
-if x=1 then
-skip
-else (
-x:=x-1;
-call fac;
-y:=z*y )
-end;
-y:=1;
-call fac
+	proc fac is
+		begin
+			var z:=x;
+			var x := x;
+			if x=1 then
+				skip
+			else (
+				x:=x-1;
+				call fac;
+				y:=z*y )
+		end;
+	call fac
 end

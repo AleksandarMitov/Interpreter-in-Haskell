@@ -7,8 +7,6 @@ import Text.Megaparsec hiding (parse, State)
 import Text.Megaparsec.Expr
 import Text.Megaparsec.String
 import qualified Text.Megaparsec.Lexer as Lexer
-import Test.Hspec
-import Test.Hspec.Megaparsec
 
 type Num = Integer
 type Var = String
@@ -38,14 +36,18 @@ data StaticProc = StaticProc Pname Stm [StaticProc] DecP [(Var, Loc)]
 
 --TODO TEST IT
 s_dynamic :: Stm -> State -> State
-s_dynamic stm state = dyn_get_var (fst (stm_val vars procs stm))
+s_dynamic stm state x = case elemIndex x var_names of
+    Just index -> dyn_get_var (fst (stm_val vars procs stm)) x
+    Nothing -> state x
     where var_names = vars_in_stm stm
           proc_names = procs_in_stm stm
           vars = extract_state state var_names
           procs = zip proc_names (repeat Skip)
 
 s_mixed :: Stm -> State -> State
-s_mixed stm state = dyn_get_var (stm_val_mixed vars (MixedProc "" stm [] []))
+s_mixed stm state x = case elemIndex x var_names of
+    Just index -> dyn_get_var (stm_val_mixed vars (MixedProc "" stm [] [])) x
+    Nothing -> state x
     where var_names = vars_in_stm stm
           vars = extract_state state var_names
 
@@ -55,7 +57,9 @@ free_slot_value :: Z
 free_slot_value = -123456789
 
 s_static :: Stm -> State -> State
-s_static stm state = static_extract_state result_store var_locs
+s_static stm state x = case elemIndex x var_names of
+    Just index -> static_extract_state result_store var_locs x
+    Nothing -> state x
     where var_names = vars_in_stm stm
           vars_in_state = extract_state state var_names
           vals = (map (\(var_name, value) -> value) vars_in_state) ++ (repeat free_slot_value)
@@ -572,6 +576,12 @@ parseFile filePath = do
     Just prog -> show prog
 
 
+test_state :: State
+test_state "kkk" = 244
+test_state "x" = 3
+test_state "undefined" = 12345678
+test_state _ = 0
+
 testDyn :: FilePath -> IO ()
 testDyn filePath = do
   file <- readFile filePath
@@ -609,10 +619,6 @@ testProcs filePath = do
   putStrLn $ case parseMaybe (between space_consumer eof stm) file of
     Nothing   -> show "Error while parsing"
     Just prog -> show (intercalate ", " (procs_in_stm(prog)))
-
-
-test_state :: State
-test_state _ = 0
 
 -- static: y=5; dynamic: y=6; mixed: y=10
 scope_stm = parse " \
@@ -725,6 +731,22 @@ test2_stm = parse "\
 \end \
 \"
 
+test3_stm = parse "\
+\begin \
+  \var x := 5; \
+  \proc a is (if !(x <= 3) then y := y + 1; x := x - 1; call b else skip); \
+  \proc b is (y := y + 100; call a); \
+  \begin \
+    \var x := 6; \
+    \proc a is ( x := 50 ); \
+    \y := 0; \
+    \call b; \
+    \x_inner := x \
+  \end; \
+  \x_outer := x \
+\end \
+\"
+
 --runs the functions with initial state created from the first list,
 --testStaticScope tests if all var values in the second list match with the produced state's value
 
@@ -767,3 +789,6 @@ extractState state var_names = map (\var_name -> (var_name, state var_name)) var
 
 main = do
     runDynamic [("x", 0), ("asdasd", 0), ("kasdasd", 99), ("y", 0)] test2_stm
+
+maint :: State
+maint = s_dynamic test3_stm test_state

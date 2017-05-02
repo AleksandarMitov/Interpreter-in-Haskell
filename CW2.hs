@@ -577,8 +577,16 @@ parseFile filePath = do
 
 main = putStrLn "Welcome to the parser/interpreter implementation for the Proc language!"
 
+maint :: FilePath -> IO State
+maint filePath = do
+  file <- readFile filePath
+  case parseMaybe (between space_consumer eof stm) file of
+    Nothing   -> return (\x -> (-1))
+    Just prog -> return (s_dynamic prog test_state)
+                    where var_names = vars_in_stm prog
+
 test_state :: State
-test_state "kkk" = 244
+test_state "xxx" = 244
 test_state "kk" = 3
 test_state _ = 0
 
