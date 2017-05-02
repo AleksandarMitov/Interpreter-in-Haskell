@@ -1,0 +1,23 @@
+begin var x:=10; 
+  proc foo is ( 
+    begin
+      x:=x+1; 
+      call bar 
+    end 
+  ); 
+  proc bar is ( 
+    begin 
+      x:=x+2 
+    end 
+  ); 
+  proc baz is ( 
+    begin 
+      x:=x+3; 
+      call foo 
+    end 
+  ); 
+  ( 
+    call baz; 
+    y:=x 
+  ) 
+end
