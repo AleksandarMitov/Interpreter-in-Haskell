@@ -69,7 +69,7 @@ s_static stm state x = case elemIndex x var_names of
                                 otherwise -> error "something went wrong"
                              in (var_name, val_index)
            ) var_names
-          result_store = stm_val_static vals (StaticProc "" stm [] [] var_locs)
+          result_store = stm_val_static vals (StaticProc "" stm [] [] var_locs) var_locs
 
 --Returns a list of var names paired with their values extracted from the state function
 extract_state :: State -> [Var] -> [(Var, Z)]
@@ -144,29 +144,29 @@ stm_val_mixed vars (MixedProc pname (Call call_proc) procs decp) = case elemInde
 --The logic assumes var_locs already contains lcoations for all global vars, i.e the ones created with an Ass statement
 -- and that the store, vals, will initially be filled with values of free_slot_value, indicating a free slot
 --TODO: TEST IT
-stm_val_static :: [Z] -> StaticProc -> [Z]
-stm_val_static vals (StaticProc pname Skip procs decp var_locs) = vals
-stm_val_static vals (StaticProc pname (Ass var expr) procs decp var_locs) = result
+stm_val_static :: [Z] -> StaticProc -> [(Var, Loc)] -> [Z]
+stm_val_static vals (StaticProc pname Skip procs decp var_locs) old_var_locs = vals
+stm_val_static vals (StaticProc pname (Ass var expr) procs decp var_locs) old_var_locs = result
     where result = static_update_var vals var_locs var (aexp_val (static_extract_state vals var_locs) expr)
-stm_val_static vals (StaticProc pname (Comp stm1 stm2) procs decp var_locs) = stm_val_static updated_vals (StaticProc pname stm2 procs decp var_locs)
-    where updated_vals = stm_val_static vals (StaticProc pname stm1 procs decp var_locs)
-stm_val_static vals (StaticProc pname (If bexpr stm1 stm2) procs decp var_locs) = case (bexp_val (static_extract_state vals var_locs) bexpr) of
-    True -> stm_val_static vals (StaticProc pname stm1 procs decp var_locs)
-    False -> stm_val_static vals (StaticProc pname stm2 procs decp var_locs)
-stm_val_static vals (StaticProc pname (While bexpr stm) procs decp var_locs) = case (bexp_val (static_extract_state vals var_locs) bexpr) of
-    True -> stm_val_static updated_vals (StaticProc pname (While bexpr stm) procs decp var_locs)
+stm_val_static vals (StaticProc pname (Comp stm1 stm2) procs decp var_locs) old_var_locs = stm_val_static updated_vals (StaticProc pname stm2 procs decp var_locs) old_var_locs
+    where updated_vals = stm_val_static vals (StaticProc pname stm1 procs decp var_locs) old_var_locs
+stm_val_static vals (StaticProc pname (If bexpr stm1 stm2) procs decp var_locs) old_var_locs = case (bexp_val (static_extract_state vals var_locs) bexpr) of
+    True -> stm_val_static vals (StaticProc pname stm1 procs decp var_locs) old_var_locs
+    False -> stm_val_static vals (StaticProc pname stm2 procs decp var_locs) old_var_locs
+stm_val_static vals (StaticProc pname (While bexpr stm) procs decp var_locs) old_var_locs = case (bexp_val (static_extract_state vals var_locs) bexpr) of
+    True -> stm_val_static updated_vals (StaticProc pname (While bexpr stm) procs decp var_locs) old_var_locs
     False -> vals
-    where updated_vals = stm_val_static vals (StaticProc pname stm procs decp var_locs)
-stm_val_static vals (StaticProc pname (Block decv decp stm) procs decp0 var_locs) = result_store
+    where updated_vals = stm_val_static vals (StaticProc pname stm procs decp var_locs) old_var_locs
+stm_val_static vals (StaticProc pname (Block decv decp stm) procs decp0 var_locs) old_var_locs = result_store
     where injected_local_vars = static_decv_val vals var_locs decv
           v1 = fst injected_local_vars
           v2 = snd injected_local_vars
           p1 = static_decp_val procs decp decp v2
-          updated_store = stm_val_static v1 (StaticProc pname stm p1 decp0 v2)
+          updated_store = stm_val_static v1 (StaticProc pname stm p1 decp0 v2) old_var_locs
           local_vars = local_vars_in_decv decv
           result_store = static_clean_store_from_local_vals updated_store vals local_vars v2
-stm_val_static vals (StaticProc pname (Call call_proc) procs decp var_locs) = case elemIndex call_proc (map (\(StaticProc n s ps ds vls) -> n) procs) of
-    Just index -> stm_val_static vals (StaticProc call_proc stm_proc subproc_procs subproc_decp subproc_var_locs)
+stm_val_static vals (StaticProc pname (Call call_proc) procs decp var_locs) old_var_locs = case elemIndex call_proc (map (\(StaticProc n s ps ds vls) -> n) procs) of
+    Just index -> stm_val_static vals (StaticProc call_proc stm_proc subproc_procs subproc_decp subproc_var_locs) var_locs
         where stm_proc = case (static_get_proc procs call_proc) of
                     StaticProc pn sb ps decp1 vls -> sb
               subproc_procs = case (static_get_proc procs call_proc) of
@@ -176,8 +176,8 @@ stm_val_static vals (StaticProc pname (Call call_proc) procs decp var_locs) = ca
               subproc_var_locs = case (static_get_proc procs call_proc) of
                     StaticProc pn sb ps decp1 vls -> vls
     Nothing -> case elemIndex call_proc (fst (unzip decp)) of
-            Just index2 -> stm_val_static vals (StaticProc call_proc (snd (decp !! index2)) procs decp var_locs)
-            Nothing -> stm_val_static vals (StaticProc call_proc Skip [] [] var_locs)
+            Just index2 -> stm_val_static vals (StaticProc call_proc (snd (decp !! index2)) procs decp old_var_locs) old_var_locs
+            Nothing -> stm_val_static vals (StaticProc call_proc Skip [] [] var_locs) var_locs
 
 --Takes a store and reverts the values of all vars whose values were overriden by local vars of the same name
 --TODO: TEST IT
