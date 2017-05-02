@@ -36,14 +36,18 @@ data StaticProc = StaticProc Pname Stm [StaticProc] DecP [(Var, Loc)]
 
 --TODO TEST IT
 s_dynamic :: Stm -> State -> State
-s_dynamic stm state = dyn_get_var (fst (stm_val vars procs stm))
+s_dynamic stm state x = case elemIndex x var_names of
+    Just index -> dyn_get_var (fst (stm_val vars procs stm)) x
+    Nothing -> state x
     where var_names = vars_in_stm stm
           proc_names = procs_in_stm stm
           vars = extract_state state var_names
           procs = zip proc_names (repeat Skip)
 
 s_mixed :: Stm -> State -> State
-s_mixed stm state = dyn_get_var (stm_val_mixed vars (MixedProc "" stm [] []))
+s_mixed stm state x = case elemIndex x var_names of
+    Just index -> dyn_get_var (stm_val_mixed vars (MixedProc "" stm [] [])) x
+    Nothing -> state x
     where var_names = vars_in_stm stm
           vars = extract_state state var_names
 
@@ -53,7 +57,9 @@ free_slot_value :: Z
 free_slot_value = -123456789
 
 s_static :: Stm -> State -> State
-s_static stm state = static_extract_state result_store var_locs
+s_static stm state x = case elemIndex x var_names of
+    Just index -> static_extract_state result_store var_locs x
+    Nothing -> state x
     where var_names = vars_in_stm stm
           vars_in_state = extract_state state var_names
           vals = (map (\(var_name, value) -> value) vars_in_state) ++ (repeat free_slot_value)
@@ -572,8 +578,8 @@ parseFile filePath = do
 main = putStrLn "Welcome to the parser/interpreter implementation for the Proc language!"
 
 test_state :: State
-test_state "x" = 244
-test_state "y" = 3
+test_state "kkk" = 244
+test_state "kk" = 3
 test_state _ = 0
 
 testDyn :: FilePath -> IO ()

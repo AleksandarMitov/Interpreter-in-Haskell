@@ -7,6 +7,8 @@ import Text.Megaparsec hiding (parse, State)
 import Text.Megaparsec.Expr
 import Text.Megaparsec.String
 import qualified Text.Megaparsec.Lexer as Lexer
+import Test.Hspec
+import Test.Hspec.Megaparsec
 
 type Num = Integer
 type Var = String
@@ -697,15 +699,36 @@ test1_stm = parse "\
 	\end \
 \end"
 
+test2_stm = parse "\
+\begin var x:=10; \
+  \proc foo is ( \
+    \begin \
+      \x:=x+1; \
+      \call bar \
+    \end \
+  \); \
+  \proc bar is ( \
+    \begin \
+      \x:=x+2 \
+    \end \
+  \); \
+  \proc baz is ( \
+    \begin \
+      \x:=x+3; \
+      \call foo \
+    \end \
+  \); \
+  \( \
+    \call baz; \
+    \y:=x \
+  \) \
+\end \
+\"
+
 --runs the functions with initial state created from the first list,
 --testStaticScope tests if all var values in the second list match with the produced state's value
-main = do
-  print (testDynamicScope [("a", 999)] [("a", 1000), ("source", 101), ("b", 0), ("y", 0), ("d", 9876), ("f", 3)] test1_stm)
-  print (testMixedScope [("a", 999)] [("a", 1000), ("source", 101), ("b", 0), ("y", 0), ("d", 1234), ("f", 3)] test1_stm)
-  print (testStaticScope [("a", 999)] [("a", 1000), ("source", 101), ("b", 0), ("y", 0), ("d", 1234), ("f", 7)] test1_stm)
-  print (runDynamic [("a", 999), ("source", 0), ("b", 0), ("y", 0), ("d", 0), ("f", 0)] test1_stm)
-  print (runMixed [("a", 999), ("source", 0), ("b", 0), ("y", 0), ("d", 0), ("f", 0)] test1_stm)
-  print (runStatic [("a", 999), ("source", 0), ("b", 0), ("y", 0), ("d", 0), ("f", 0)] test1_stm)
+
+
 
 --first list is the initial state, all var values in the second list are compared against the produced state from running the function
 testDynamicScope :: [(Var, Z)] -> [(Var, Z)] -> Stm -> Bool
@@ -741,3 +764,6 @@ createState vars x = case elemIndex x (fst (unzip vars)) of
 
 extractState :: State -> [Var] -> [(Var, Z)]
 extractState state var_names = map (\var_name -> (var_name, state var_name)) var_names
+
+main = do
+    runDynamic [("x", 0), ("asdasd", 0), ("kasdasd", 99), ("y", 0)] test2_stm
